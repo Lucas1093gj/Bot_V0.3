@@ -1,0 +1,17 @@
+# Fichiers d'environnement - NE JAMAIS PARTAGER
+.env
+
+# Fichiers de cache générés automatiquement
+.cache
+
+# Dossiers de cache Python
+__pycache__/
+*.pyc
+
+# Bases de données locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Dossier des sauvegardes de serveur
+guild_backups/

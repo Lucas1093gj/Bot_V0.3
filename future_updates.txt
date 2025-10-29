@@ -1,0 +1,194 @@
+# Fichier d'idées pour les futures mises à jour du bot (v0.3 et au-delà)
+# Ce document sert de feuille de route pour le développement futur.
+# Les idées sont regroupées par version pour une meilleure organisation.
+import datetime
+
+---
+
+### ✅ **Fonctionnalités Implémentées (v0.2)**
+
+- **Reset Intelligent**: La commande `/discordmaker reset` ne supprime que les éléments connus du bot.
+- **Réinitialisation Complète Sécurisée**: La commande `/discordmaker full-reset` (owner-only) permet une suppression totale avec double confirmation.
+- **Sauvegarde et Restauration**: Le bot peut créer une sauvegarde `.json` de la structure du serveur et la restaurer via la commande `/discordmaker restore`.
+
+---
+
+### ✅ **Fonctionnalités Implémentées (v0.3)**
+
+*Mise à jour du 24/05/2024*
+
+*   **Nouveau Cog : `moderation.py`**
+    *   ✅ `/clear [nombre]`: Supprime des messages.
+    *   ✅ `/warn [membre] [raison]`: Avertit un membre.
+    *   ✅ `/warnings [membre]`: Affiche l'historique des avertissements.
+    *   ✅ `/mute [membre] [durée] [raison]`: Applique un timeout.
+    *   ✅ `/unmute [membre]`: Retire le timeout.
+
+*   **Nouveau Cog : `utils.py`**
+    *   ✅ `/serverinfo`: Statistiques détaillées sur le serveur.
+    *   ✅ `/userinfo [membre]`: Informations sur un membre.
+
+*   **Améliorations `musique`**
+    *   ✅ **Sauvegarde de file d'attente** : Le bot propose de restaurer la file d'attente précédente lorsqu'il revient dans un salon vocal.
+    *   ✅ `/shuffle`: Mélange la file d'attente.
+
+
+*   **Module `musique`**
+    *   ✅ `/loop [mode]`: Répète la musique (`track`), la file d'attente (`queue`), ou désactive (`off`).
+    *   ✅ `/playnext [recherche]`: Joue une musique juste après la piste actuelle.
+
+### 🎯 **v0.3 : Prochaines Étapes**
+*Objectif : Solidifier les fonctions existantes et ajouter les briques essentielles pour la modération et l'engagement.*
+
+---
+
+#### **Module `musique`**
+
+- **Contrôles Avancés**:
+
+- **Commandes d'Information**:
+  - `/avatar [membre]`: Affiche l'avatar d'un membre.
+- **Sondages (`/poll`)**: Crée des sondages simples.
+
+#### **Améliorations Techniques**
+
+- **Base de Données Centralisée**: Migrer toutes les données vers une seule base de données SQLite avec plusieurs tables.
+- **Logs d'Actions du Bot**: Créer un salon de log privé où le bot annonce ses actions critiques (redémarrage, erreurs, etc.).
+---
+
+### 🎯 **v0.4 : Gamification et Engagement**
+
+*Objectif : Introduire des systèmes ludiques pour encourager l'activité et la participation des membres.*
+
+---
+
+#### **Nouveau Cog : `leveling.py`**
+
+- **Gain d'XP**: XP par message (avec cooldown) et XP pour le temps passé en vocal.
+- **Interface Visuelle**: Commande `/rank` avec une carte de niveau générée par `Pillow`.
+- **Récompenses**: Rôles de niveau automatiques.
+
+#### **Nouveau Cog : `economy.py`**
+
+- **Système de Base**: Commandes `/balance`, `/daily`, `/work`, `/pay`.
+- **Boutique**: Commande `/shop` pour acheter des rôles cosmétiques.
+- **Jeux d'Argent**: `/coinflip`, `/slots` pour pimenter l'économie.
+
+#### **Nouveau Cog : `giveaways.py`**
+
+- **Giveaways Simples**: Commande `/giveaway start` pour lancer un concours avec durée, prix et nombre de gagnants.
+
+---
+
+### 🎯 **v0.5 : Automatisation et Outils de Staff**
+
+*Objectif : Rendre le bot plus autonome et fournir des outils puissants à l'équipe de modération.*
+
+---
+
+#### **Module `moderation.py`**
+
+- **Auto-Modération**: Filtres anti-spam, anti-mots interdits, et anti-liens.
+- **Sanctions Automatiques**: Sanctions progressives (3 warns -> mute, etc.).
+- **Logs Détaillés**: Embeds propres pour chaque action de modération.
+- **Système de Tickets (`/ticket open`)**: Pour que les membres contactent le staff en privé.
+
+#### **Nouveau Cog : `events.py`**
+
+- **Messages de Bienvenue/Départ**: Avec image personnalisée générée par `Pillow`.
+- **Auto-Rôle**: Assigner automatiquement un rôle aux nouveaux membres.
+
+---
+
+### 🎯 **v0.6 : Interactions Communautaires Avancées**
+
+*Objectif : Créer un véritable écosystème social au sein du serveur.*
+
+---
+
+#### **Nouveau Cog : `social.py`**
+
+- **Système de Clans/Guildes**: `/clan create`, `/clan invite`, `/clan leaderboard`.
+- **Système de Mariage**: `/marry [membre]`, `/divorce` pour le fun.
+- **Profils Utilisateurs**: Commande `/profile` affichant niveau, argent, clan, badges, etc.
+
+#### **Module `events.py`**
+
+- **Système de Suggestions (`/suggest`)**: Permet aux membres de voter et au staff de gérer les suggestions.
+- **Starboard**: Un "best-of" des messages du serveur.
+
+#### **Module `giveaway.py`**
+
+- **Giveaways avec Prérequis**: Ajouter des conditions pour participer (rôle, niveau, ancienneté).
+
+---
+
+### 🎯 **v0.7 : Intégrations Externes et Contenu**
+
+*Objectif : Connecter le bot au monde extérieur pour apporter des infos et du divertissement.*
+
+---
+
+#### **Nouveau Cog : `integrations.py`**
+
+- **Informations Utiles**: `/weather [ville]`, `/translate [langue] [texte]`.
+- **Statistiques de Jeux**: `/stats valorant [pseudo]`, `/stats lol [pseudo]`.
+- **Contenu Amusant**: `/meme`, `/gif [recherche]`, `/fact`, `/joke`.
+
+#### **Module `musique`**
+
+- **Paroles et Effets**: `/lyrics` pour les paroles, `/effects bassboost|nightcore`.
+
+---
+
+### 🎯 **v0.8 : Projets Majeurs et Écosystème**
+
+*Objectif : Aller au-delà d'un simple bot pour en faire une plateforme de gestion complète.*
+
+---
+
+- **Tableau de Bord Web (Web Dashboard)**:
+  - **Description**: Un site web où les administrateurs peuvent se connecter et configurer le bot (modération, rôles, économie, etc.) de manière visuelle.
+  - **Technologies**: Flask/Django, OAuth2 pour le login Discord.
+
+- **Localisation (i18n)**:
+  - **Description**: Rendre le bot multilingue. Les réponses s'adapteraient à la langue du serveur.
+  - **Implémentation**: Utiliser des fichiers de langue (ex: `fr.json`, `en.json`).
+
+---
+
+### 🎯 **v0.9 : Intelligence Artificielle**
+
+*Objectif : Intégrer des fonctionnalités d'IA pour des interactions plus intelligentes et créatives.*
+
+---
+
+- **AI Chatbot**: Intégrer une IA conversationnelle (API Gemini) pour discuter avec les utilisateurs.
+- **Génération d'Images par IA**: Commande `/imagine [prompt]` pour créer des images.
+- **Modération par IA**: Utiliser une IA d'analyse de sentiment pour détecter la toxicité et alerter les modérateurs.
+- **Résumé de Conversation**: Commande `/summarize` pour résumer les derniers messages d'un salon.
+
+---
+
+### 🎯 **v1.0 : Lancement Officiel et Stabilité**
+
+*Objectif : Finaliser le bot, optimiser ses performances et assurer sa stabilité sur le long terme.*
+
+---
+
+#### **Optimisation et Nettoyage**
+
+- **Revue de Code Complète**: Analyser et refactoriser l'ensemble du code pour améliorer la lisibilité, la performance et la maintenabilité.
+- **Optimisation des Requêtes de Base de Données**: Ajouter des index et optimiser les requêtes SQL pour plus de rapidité.
+- **Gestion de la Mémoire**: Vérifier et corriger les éventuelles fuites de mémoire, notamment dans les cogs qui tournent en continu (musique, leveling).
+
+#### **Tests et Fiabilité**
+
+- **Tests Automatisés (`pytest`)**: Mettre en place une suite de tests complète pour couvrir toutes les fonctionnalités critiques.
+- **Sharding**: Implémenter le sharding si le bot est sur un grand nombre de serveurs (>2000) pour répartir la charge.
+
+#### **Documentation et Support**
+
+- **Documentation Complète**: Créer un site de documentation (ex: avec MkDocs ou GitBook) expliquant chaque commande et chaque système.
+- **Serveur de Support**: Mettre en place un serveur Discord officiel pour le bot, où les utilisateurs peuvent obtenir de l'aide, signaler des bugs et suggérer des fonctionnalités.
+- **Script d'Installation Facile**: Créer un script qui guide les nouveaux hébergeurs à travers l'installation (création du `.env`, installation des dépendances, etc.).

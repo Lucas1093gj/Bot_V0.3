@@ -1,0 +1,5 @@
+discord.py
+python-dotenv
+spotipy
+yt-dlp
+# sqlite3 est généralement inclus dans Python, mais l'ajouter ne nuit pas.

@@ -1,0 +1,23 @@
+{
+    "roles": [
+        "Admin",
+        "Animateur",
+        "Apex Legends",
+        "Bot",
+        "Fortnite",
+        "GTA RP",
+        "League of Legends",
+        "Minecraft",
+        "Modérateur",
+        "Muted",
+        "Notif Annonces",
+        "Notif Giveaways",
+        "Owner",
+        "VIP",
+        "Valorant",
+        "Vérifié"
+    ],
+    "channel_categories": [],
+    "cleanup_policy": "keep",
+    "verification_system": "enabled"
+}
