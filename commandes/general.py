@@ -9,9 +9,6 @@ class GeneralCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.CREATOR_ID = int(os.getenv("CREATOR_ID")) if os.getenv("CREATOR_ID") else None
-        
-        # --- LANCEMENT DE LA TÂCHE DE FOND ---
-        self.keep_alive_loop.start()
 
     # --- COMMANDE 1 : /ping ---
     @app_commands.command(name="ping", description="Vérifie la latence du bot")

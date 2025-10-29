@@ -51,7 +51,7 @@ async def on_ready():
                 print(f"-> Cog '{filename[:-3]}' chargé.")
         
         synced = await bot.tree.sync()
-        print(f"{len(synced)} commande(s) synchronisée(s).")
+        print(f"{len(synced)} commande(s) synchronisée(s) globalement.")
     except Exception as e:
         print(f"Erreur lors du chargement/synchronisation : {e}")
 
