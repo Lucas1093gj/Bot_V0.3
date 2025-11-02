@@ -87,7 +87,7 @@ async def close(): # L'événement 'close' est plus fiable que 'on_disconnect'
         print("[Shutdown] Connexion à la base de données fermée.")
 
 
-print("Le bot démarre...")
+print("Le bot démarre... 123")
 
 #lancement du bot
 bot.run(DISCORD_TOKEN)
