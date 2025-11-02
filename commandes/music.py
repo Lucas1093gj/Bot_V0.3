@@ -508,8 +508,13 @@ class MusicCog(commands.Cog):
         vc = interaction.guild.voice_client
         if not vc:
             vc = await voice_channel.connect()
+        # --- MODIFICATION : Empêcher le bot d'être "volé" ---
         elif vc.channel != voice_channel:
-            await vc.move_to(voice_channel)
+            # Si le bot est déjà en train de jouer ou en pause dans un autre salon
+            if vc.is_playing() or vc.is_paused():
+                await interaction.followup.send(f"❌ Je suis déjà en train de jouer de la musique dans le salon {vc.channel.mention}. Veuillez me stopper ou attendre la fin avant de m'appeler ailleurs.", ephemeral=True)
+                return # On arrête l'exécution de la commande ici
+            await vc.move_to(voice_channel) # Si le bot est inactif, on le déplace
 
         guild_id = interaction.guild.id
         state = self.get_guild_state(guild_id)
