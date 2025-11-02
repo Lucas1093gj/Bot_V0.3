@@ -262,6 +262,7 @@ class MusicCog(commands.Cog):
     async def auto_disconnect(self, guild_id: int, vc: discord.VoiceClient):
         """Tâche qui déconnecte le bot après une période d'inactivité."""
         await asyncio.sleep(180)  # Attend 3 minutes
+        await asyncio.sleep(30)  # Attend 30 secondes
         state = self.get_guild_state(guild_id)
         if vc.is_connected() and len(vc.channel.members) == 1:
             text_channel = self.bot.get_channel(state.text_channel_id)
