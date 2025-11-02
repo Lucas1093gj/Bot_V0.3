@@ -20,6 +20,11 @@ class GeneralCog(commands.Cog):
     @app_commands.command(name="restart", description="[DANGER] Redémarre le processus du bot (créateur uniquement).")
     async def restart(self, interaction: discord.Interaction):
         if interaction.user.id == self.CREATOR_ID:
+            # Vérifier si une opération critique est en cours
+            if self.bot.critical_operation_lock.locked():
+                await interaction.response.send_message("❌ Redémarrage impossible : une opération critique (ex: construction de serveur) est en cours. Veuillez réessayer plus tard.", ephemeral=True)
+                return
+
             await interaction.response.send_message("Redémarrage du bot...", ephemeral=True)
             print(f"[Restart] {interaction.user} a redémarré le bot.")
             await self.bot.close()

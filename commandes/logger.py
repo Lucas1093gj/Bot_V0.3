@@ -1,28 +1,49 @@
 import discord
 import sqlite3
 import io
-from discord.ext import commands
+import asyncio
+from discord.ext import commands, tasks
 import os
 from discord import app_commands
 
 class LoggerCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.db_conn = bot.db_conn # Récupère la connexion depuis l'instance du bot
+        # File d'attente pour stocker les logs avant de les écrire dans la DB
+        self.log_queue = asyncio.Queue()
+        # Tâche en arrière-plan pour traiter la file d'attente
+        self.db_writer_task.start()
 
     def cog_unload(self):
-        pass # La connexion est maintenant gérée par main.py
+        # Arrêter proprement la tâche en arrière-plan
+        self.db_writer_task.cancel()
+
+    @tasks.loop(seconds=5.0)
+    async def db_writer_task(self):
+        """Tâche qui s'exécute en continu pour écrire les logs dans la base de données."""
+        if self.log_queue.empty():
+            return
+
+        # Utiliser une nouvelle connexion pour cette tâche pour éviter les conflits
+        conn = sqlite3.connect("bot_database.db")
+        cursor = conn.cursor()
+        
+        # Traiter tous les éléments actuellement dans la file d'attente
+        logs_to_process = []
+        while not self.log_queue.empty():
+            logs_to_process.append(await self.log_queue.get())
+
+        cursor.executemany("INSERT INTO message_events (guild_id, channel_id, author_id, event_type, old_content, new_content) VALUES (?, ?, ?, ?, ?, ?)", logs_to_process)
+        conn.commit()
+        conn.close()
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):
         # On ignore les messages du bot et les DMs
         if message.author.bot or message.guild is None:
             return
-
-        cursor = self.db_conn.cursor()
-        cursor.execute("INSERT INTO message_events (guild_id, channel_id, author_id, event_type, old_content) VALUES (?, ?, ?, ?, ?)",
-                       (message.guild.id, message.channel.id, message.author.id, 'deleted', message.content))
-        self.db_conn.commit()
+        # Ajouter l'événement à la file d'attente au lieu d'écrire directement
+        await self.log_queue.put((message.guild.id, message.channel.id, message.author.id, 'deleted', message.content, None))
 
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
@@ -30,16 +51,14 @@ class LoggerCog(commands.Cog):
         if before.author.bot or before.guild is None or before.content == after.content:
             return
 
-        cursor = self.db_conn.cursor()
-        cursor.execute("INSERT INTO message_events (guild_id, channel_id, author_id, event_type, old_content, new_content) VALUES (?, ?, ?, ?, ?, ?)",
-                       (before.guild.id, before.channel.id, before.author.id, 'edited', before.content, after.content))
-        self.db_conn.commit()
+        # Ajouter l'événement à la file d'attente
+        await self.log_queue.put((before.guild.id, before.channel.id, before.author.id, 'edited', before.content, after.content))
 
     @app_commands.command(name="getlog", description="Récupère l'historique des messages modifiés/supprimés.")
     @app_commands.checks.has_permissions(administrator=True)
     async def getlog(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-
+        
         guild = interaction.guild
         cursor = self.db_conn.cursor()
         cursor.execute("SELECT author_id, channel_id, event_type, old_content, new_content, timestamp FROM message_events WHERE guild_id = ? ORDER BY timestamp ASC", (guild.id,))

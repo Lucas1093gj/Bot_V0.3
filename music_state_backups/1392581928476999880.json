@@ -1,0 +1,28 @@
+{
+    "queue": [
+        {
+            "url": "https://www.youtube.com/watch?v=lYoWuaw5nSk",
+            "title": "Vance Joy - Riptide (Lyrics)",
+            "duration": 198,
+            "thumbnail": "https://i.ytimg.com/vi_webp/lYoWuaw5nSk/maxresdefault.webp",
+            "requester_id": 811669950208671744
+        },
+        {
+            "url": "https://www.youtube.com/watch?v=DeumyOzKqgI",
+            "title": "Adele - Skyfall (Official Lyric Video)",
+            "duration": 289,
+            "thumbnail": "https://i.ytimg.com/vi/DeumyOzKqgI/maxresdefault.jpg",
+            "requester_id": 811669950208671744
+        },
+        {
+            "url": "https://www.youtube.com/watch?v=lYoWuaw5nSk",
+            "title": "Vance Joy - Riptide (Lyrics)",
+            "duration": 198,
+            "thumbnail": "https://i.ytimg.com/vi_webp/lYoWuaw5nSk/maxresdefault.webp",
+            "requester_id": 811669950208671744
+        }
+    ],
+    "loop_mode": null,
+    "volume": 0.15,
+    "text_channel_id": 1406739893794902187
+}

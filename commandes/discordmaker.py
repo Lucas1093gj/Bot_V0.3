@@ -6,6 +6,7 @@ import asyncio
 import os
 import time
 # --- Configuration principale du module ---
+from db_manager import get_db_connection
 # --- Constantes de configuration ---
 CONFIG_DIR = "guild_configs"
 BACKUP_DIR = "guild_backups"
@@ -158,36 +159,44 @@ async def create_server_backup(guild: discord.Guild) -> str | None:
 # --- Vues (UI) pour la vérification ---
 class VerificationView(discord.ui.View):
     """Bouton persistant permettant aux membres de se vérifier."""
-    def __init__(self, role: discord.Role):
+    def __init__(self):
+        # On rend la vue persistante en ne spécifiant pas de timeout.
         super().__init__(timeout=None)
-        self.role = role
 
-    @discord.ui.button(label="Cliquez ici pour vérifier", style=discord.ButtonStyle.success, emoji="✅", custom_id="verification_button")
+    @discord.ui.button(label="Cliquez ici pour vérifier", style=discord.ButtonStyle.success, emoji="✅", custom_id="verification_button_persistent")
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Callback du bouton de vérification."""
-        if self.role in interaction.user.roles:
+        # On récupère le rôle dynamiquement au moment du clic
+        verified_role = discord.utils.get(interaction.guild.roles, name="Vérifié")
+
+        if not verified_role:
+            return await interaction.response.send_message("❌ Le rôle 'Vérifié' n'a pas été trouvé sur ce serveur. Veuillez contacter un administrateur.", ephemeral=True)
+
+        # On vérifie si l'utilisateur a déjà le rôle
+        if verified_role in interaction.user.roles:
             await interaction.response.send_message("Vous êtes déjà vérifié !", ephemeral=True)
         else:
             try:
-                await interaction.user.add_roles(self.role, reason="Vérification automatique")
+                await interaction.user.add_roles(verified_role, reason="Vérification automatique")
                 await interaction.response.send_message("✅ Vous avez été vérifié avec succès ! Vous avez maintenant accès au reste du serveur.", ephemeral=True)
             except discord.Forbidden:
                 await interaction.response.send_message("❌ Je n'ai pas les permissions pour vous donner ce rôle. Veuillez contacter un administrateur.", ephemeral=True)
             except Exception as e:
                 print(f"Erreur lors de l'ajout du rôle de vérification : {e}")
-                await interaction.response.send_message(f"❌ Une erreur est survenue lors de la vérification.", ephemeral=True)
+                await interaction.response.send_message("❌ Une erreur est survenue lors de la vérification.", ephemeral=True)
 
 # --- Vues (UI) pour la sélection de rôles ---
 class RoleMenuView(discord.ui.View):
     """Menu déroulant persistant pour que les membres choisissent leurs rôles."""
-    def __init__(self, assignable_roles: list[str]):
+    def __init__(self, assignable_roles: list[str], bot_instance):
         super().__init__(timeout=None)
         # On passe la liste des rôles au Select pour qu'il sache quoi afficher
-        self.add_item(RoleMenuSelect(assignable_roles))
+        self.add_item(RoleMenuSelect(assignable_roles, bot_instance))
 
 class RoleMenuSelect(discord.ui.Select):
     """Menu de sélection pour les rôles de notification."""
-    def __init__(self, assignable_roles: list[str]): # noqa
+    def __init__(self, assignable_roles: list[str], bot_instance): # noqa
+        self.bot = bot_instance
         options = []
         for role_name in assignable_roles:
             description = f"Pour obtenir le rôle {role_name}"
@@ -210,6 +219,15 @@ class RoleMenuSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         """Met à jour les rôles de l'utilisateur en fonction de sa sélection."""
         member = interaction.user
+
+        # Recharger la configuration pour obtenir les rôles assignables actuels
+        # Cela rend la vue plus robuste si la config change pendant que le bot tourne
+        config = load_config(interaction.guild.id)
+        server_assignable_roles = [role for role in config.get("roles", []) if role in SELF_ASSIGNABLE_ROLES]
+
+        # Mettre à jour les options du select au cas où elles auraient changé
+        self.options = [opt for opt in self.options if opt.label in server_assignable_roles]
+        self.max_values = len(self.options)
         
         # On ne traite que les rôles qui étaient proposés dans le menu
         possible_roles = {option.label for option in self.options}
@@ -295,15 +313,110 @@ class VerificationSelect(discord.ui.Select):
         save_config(interaction.guild_id, config) # noqa
         await interaction.response.send_message(f"✅ Système de vérification : `{self.values[0]}`", ephemeral=True)
 
+class ModLogChannelSelect(discord.ui.ChannelSelect):
+    """Menu de sélection pour le salon des logs de modération."""
+    def __init__(self, current_channel_id: int | None):
+        super().__init__(
+            placeholder="Choisissez un salon pour les logs de modération...",
+            min_values=0, # Permet de désélectionner
+            max_values=1,
+            channel_types=[discord.ChannelType.text],
+            custom_id="mod_log_channel_select"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        channel_id = int(self.values[0].id) if self.values else None
+        cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (interaction.guild.id, channel_id))
+        conn.commit()
+        conn.close()
+        message = f"✅ Salon des logs de modération défini sur : {self.values[0].mention}" if channel_id else "✅ Salon des logs de modération désactivé."
+        await interaction.response.send_message(message, ephemeral=True)
+
+class TicketCategorySelect(discord.ui.ChannelSelect):
+    """Menu de sélection pour la catégorie des tickets."""
+    def __init__(self):
+        super().__init__(
+            placeholder="Choisissez une catégorie pour les tickets...",
+            min_values=0, # Permet de désélectionner
+            max_values=1,
+            channel_types=[discord.ChannelType.category],
+            custom_id="ticket_category_select"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        category_id = int(self.values[0].id) if self.values else None
+        cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, category_id))
+        conn.commit()
+        conn.close()
+        message = f"✅ Catégorie des tickets définie sur : **{self.values[0].name}**" if category_id else "✅ Système de tickets désactivé."
+        await interaction.response.send_message(message, ephemeral=True)
+
 class ConfigView(discord.ui.View):
     """Vue principale regroupant tous les menus de configuration."""
     def __init__(self, guild_id: int):
-        super().__init__(timeout=180)
-        config = load_config(guild_id)
-        self.add_item(RoleSelect(config.get("roles", [])))
-        self.add_item(ChannelSelect(config.get("channel_categories", [])))
-        self.add_item(CleanupSelect(config.get("cleanup_policy", "keep")))
-        self.add_item(VerificationSelect(config.get("verification_system", "disabled")))
+        super().__init__(timeout=300) # Augmentation du timeout
+        self.guild_id = guild_id
+        self.current_page = 1
+        self.update_view()
+
+    def update_view(self):
+        """Met à jour les composants de la vue en fonction de la page actuelle."""
+        self.clear_items()
+        config = load_config(self.guild_id)
+
+        if self.current_page == 1:
+            # Page 1: Configuration principale
+            self.add_item(RoleSelect(config.get("roles", [])))
+            self.add_item(ChannelSelect(config.get("channel_categories", [])))
+            self.add_item(CleanupSelect(config.get("cleanup_policy", "keep")))
+            self.add_item(VerificationSelect(config.get("verification_system", "disabled")))
+            self.add_item(PageButton(label="Suivant ➡️", next_page=2, style=discord.ButtonStyle.secondary, row=4))
+        elif self.current_page == 2:
+            # Page 2: Configuration des modules
+            self.add_item(ModLogChannelSelect(None))
+            self.add_item(TicketCategorySelect())
+            self.add_item(PageButton(label="⬅️ Précédent", next_page=1, style=discord.ButtonStyle.secondary, row=4))
+
+class PageButton(discord.ui.Button):
+    def __init__(self, label: str, next_page: int, style: discord.ButtonStyle, row: int):
+        super().__init__(label=label, style=style, row=row)
+        self.next_page = next_page
+
+    async def callback(self, interaction: discord.Interaction):
+        """Change la page de la vue de configuration."""
+        view: ConfigView = self.view
+        view.current_page = self.next_page
+        view.update_view()
+
+        # Créer le nouvel embed pour la page actuelle
+        config = load_config(interaction.guild.id)
+        embed = discord.Embed(
+            title=f"🛠️ Configuration du Serveur (Page {view.current_page}/2)",
+            color=discord.Color.blurple()
+        )
+
+        if view.current_page == 1:
+            embed.description = "Configurez les options principales de la structure du serveur."
+            embed.add_field(name="Rôles", value=f"{len(config.get('roles', []))} configurés", inline=True)
+            embed.add_field(name="Catégories", value=f"{len(config.get('channel_categories', []))} configurées", inline=True)
+        elif view.current_page == 2:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT mod_log_channel_id, ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,))
+            record = cursor.fetchone()
+            conn.close()
+            log_channel_status = "✅" if record and record['mod_log_channel_id'] else "❌"
+            ticket_category_status = "✅" if record and record['ticket_category_id'] else "❌"
+
+            embed.description = "Configurez les options des modules additionnels."
+            embed.add_field(name="Salon des Logs", value=f"Configuré : {log_channel_status}", inline=True)
+            embed.add_field(name="Catégorie des Tickets", value=f"Configurée : {ticket_category_status}", inline=True)
+
+        await interaction.response.edit_message(embed=embed, view=view)
 
 # --- Classe principale du Cog ---
 class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
@@ -316,23 +429,12 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @app_commands.checks.has_permissions(administrator=True)
     async def setup(self, interaction: discord.Interaction):
         """Affiche le panneau de configuration du serveur."""
-        config = load_config(interaction.guild_id)
-        roles = ", ".join(f"`{r}`" for r in config.get("roles", [])) or "Aucun"
-        cats = ", ".join(f"`{c}`" for c in config.get("channel_categories", [])) or "Aucune"
-        policy = f"`{config.get('cleanup_policy', 'keep')}`"
-        verification_status = f"`{config.get('verification_system', 'disabled').capitalize()}`"
-
         embed = discord.Embed(
-            title="🛠️ Configuration du Serveur",
-            description="Configurez votre serveur pas à pas avec les menus ci-dessous.\n"
+            title="🛠️ Configuration du Serveur (Page 1/2)",
+            description="Bienvenue dans le panneau de configuration. Configurez les options principales de la structure du serveur.\n"
                         "Vos choix sont sauvegardés automatiquement. Une fois prêt, lancez `/discordmaker start`.",
             color=discord.Color.blurple()
         )
-        embed.add_field(name="Rôles Actuels", value=roles, inline=False)
-        embed.add_field(name="Catégories Actuelles", value=cats, inline=False)
-        embed.add_field(name="Politique de Nettoyage", value=policy, inline=False)
-        embed.add_field(name="Système de Vérification", value=verification_status, inline=False)
-        
         await interaction.response.send_message(embed=embed, view=ConfigView(interaction.guild_id), ephemeral=True)
 
     @maker_group.command(name="start", description="Construit le serveur avec la configuration actuelle.")
@@ -340,170 +442,199 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     async def start(self, interaction: discord.Interaction):
         """Construit le serveur en se basant sur la configuration sauvegardée."""
         await interaction.response.defer(ephemeral=True)
-        config = load_config(interaction.guild_id)
-        guild = interaction.guild
 
-        if not config.get("roles") and not config.get("channel_categories"):
-            await interaction.followup.send("❌ Aucune configuration n'a été trouvée. Utilisez d'abord `/discordmaker setup`.", ephemeral=True)
-            return
+        # Acquérir le verrou pour empêcher le redémarrage
+        async with self.bot.critical_operation_lock:
+            config = load_config(interaction.guild_id)
+            guild = interaction.guild
 
-        await interaction.followup.send("🚀 Lancement de la construction du serveur... Cela peut prendre un moment.", ephemeral=True)
-
-        # --- Nettoyage (si configuré) ---
-        cleanup_policy = config.get("cleanup_policy", "keep")
-        if cleanup_policy == "smart_delete":
-            await self._cleanup_guild(guild)
-        elif cleanup_policy == "full_delete":
-            # Vérification de sécurité pour la suppression totale
-            if interaction.user.id != guild.owner_id:
-                await interaction.followup.send("❌ La politique de 'Suppression Totale' est sélectionnée. Seul le propriétaire du serveur peut lancer cette commande.", ephemeral=True)
+            if not config.get("roles") and not config.get("channel_categories"):
+                await interaction.followup.send("❌ Aucune configuration n'a été trouvée. Utilisez d'abord `/discordmaker setup`.", ephemeral=True)
                 return
 
-            embed = discord.Embed(
-                title="⚠️ CONFIRMATION DE SUPPRESSION TOTALE ⚠️",
-                description=f"**Vous avez demandé une suppression totale du serveur `{guild.name}` via la commande `start`.**\n\n"
-                            "Pour confirmer, veuillez taper `OUI` en majuscules dans ce salon dans les 30 secondes.",
-                color=discord.Color.dark_red()
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send("🚀 Lancement de la construction du serveur... Cela peut prendre un moment.", ephemeral=True)
 
-            def check(m: discord.Message):
-                return m.author == interaction.user and m.channel == interaction.channel and m.content == "OUI"
+            # --- Nettoyage (si configuré) ---
+            cleanup_policy = config.get("cleanup_policy", "keep")
+            if cleanup_policy == "smart_delete":
+                await self._cleanup_guild(guild)
+            elif cleanup_policy == "full_delete":
+                # Vérification de sécurité pour la suppression totale
+                if interaction.user.id != guild.owner_id:
+                    await interaction.followup.send("❌ La politique de 'Suppression Totale' est sélectionnée. Seul le propriétaire du serveur peut lancer cette commande.", ephemeral=True)
+                    return
 
-            try:
-                msg = await self.bot.wait_for('message', check=check, timeout=30.0)
-                await msg.delete()
-            except asyncio.TimeoutError:
-                await interaction.followup.send("❌ Délai de confirmation dépassé. Opération annulée.", ephemeral=True)
-                return
-            except discord.HTTPException:
-                pass # Pas grave si on ne peut pas supprimer le message de confirmation
-
-            # Création et envoi de la sauvegarde avant la suppression
-            await interaction.followup.send("🔄 Création d'une sauvegarde du serveur avant suppression...", ephemeral=True)
-            backup_file_path = await create_server_backup(guild)
-            if backup_file_path:
-                try:
-                    embed_backup = discord.Embed(title=f"📄 Sauvegarde du serveur {guild.name}", description="Voici une sauvegarde de la structure de votre serveur (rôles et salons) avant sa réinitialisation complète. **Conservez ce fichier précieusement.**", color=discord.Color.orange())
-                    embed_backup.add_field(name="À quoi sert ce fichier ?", value="Ce fichier `.json` contient les informations sur vos rôles, salons et permissions. Il peut être utilisé avec la commande `/discordmaker restore` pour recréer cette structure.", inline=False)
-                    embed_backup.set_footer(text="⚠️ ATTENTION : Cette sauvegarde n'inclut PAS les messages, les membres, ou les fichiers du serveur.")
-                    await interaction.user.send(embed=embed_backup, file=discord.File(backup_file_path))
-                except discord.Forbidden:
-                    await interaction.followup.send("⚠️ Impossible de vous envoyer la sauvegarde en DM. Vos messages privés sont probablement fermés.", ephemeral=True)
-            await self._full_cleanup_guild(guild)
-
-        # --- Création des rôles ---
-        created_roles = {}
-        # Trier les rôles pour créer les plus hauts en premier
-        role_creation_order = sorted(
-            config.get("roles", []),
-            key=lambda r: list(ROLE_DATA.keys()).index(r) if r in ROLE_DATA else -1,
-            reverse=True
-        )
-
-        if config.get("roles"):
-            for role_name in role_creation_order:
-                existing_role = discord.utils.get(guild.roles, name=role_name)
-                if existing_role:
-                    created_roles[role_name] = existing_role
-                    continue
-
-                role_data = ROLE_DATA.get(role_name, {})
-                permissions = role_data.get("permissions", discord.Permissions.none())
-                color = role_data.get("color", discord.Color.default())
-                # Les rôles VIP et Muted ne sont pas affichés séparément
-                hoist = role_name in ["Owner", "Admin", "Modérateur", "Animateur"]
-                try:
-                    role = await guild.create_role(name=role_name, permissions=permissions, color=color, reason="DiscordMaker Setup", hoist=hoist)
-                    created_roles[role_name] = role
-                    await asyncio.sleep(0.5)
-                except discord.Forbidden:
-                    await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le rôle `{role_name}`.")
-                    continue
-
-        # --- Création des salons ---
-        if config.get("channel_categories"):
-            # Récupération des rôles clés pour les permissions
-            verified_role = created_roles.get("Vérifié") or discord.utils.get(guild.roles, name="Vérifié")
-            admin_role = created_roles.get("Admin") or discord.utils.get(guild.roles, name="Admin")
-            mod_role = created_roles.get("Modérateur") or discord.utils.get(guild.roles, name="Modérateur")
-
-            for category_name in config["channel_categories"]:
-                structure = CHANNEL_STRUCTURE.get(category_name)
-                if not structure:
-                    continue
-
-                # Définition des permissions de base pour la catégorie
-                cat_overwrites = {guild.me: discord.PermissionOverwrite(view_channel=True)}
-                if structure.get("staff_only"):
-                    cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False)
-                    if admin_role: cat_overwrites[admin_role] = discord.PermissionOverwrite(view_channel=True)
-                    if mod_role: cat_overwrites[mod_role] = discord.PermissionOverwrite(view_channel=True)
-                elif config.get("verification_system") == "enabled":
-                    cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False)
-                    if verified_role: cat_overwrites[verified_role] = discord.PermissionOverwrite(view_channel=True)
-                
-                # Cas spécial pour la catégorie ACCUEIL
-                if "ACCUEIL" in category_name:
-                    cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
-
-                # Création de la catégorie
-                try:
-                    category = await guild.create_category(category_name, overwrites=cat_overwrites, reason="DiscordMaker Setup")
-                    await asyncio.sleep(0.5)
-                except discord.Forbidden:
-                    await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer la catégorie `{category_name}`.")
-                    continue
-
-                # Salons textuels
-                for channel_name in structure["text"]:
-                    chan_overwrites = cat_overwrites.copy() # Hérite des permissions de la catégorie
-                    # Permissions spécifiques au salon
-                    if "annonces" in channel_name and verified_role:
-                        chan_overwrites[verified_role] = discord.PermissionOverwrite(send_messages=False)
-                    if "vérification" in channel_name: # Visible par tous, mais personne ne peut écrire
-                        chan_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
-                    
-                    try:
-                        await guild.create_text_channel(channel_name, category=category, overwrites=chan_overwrites, reason="DiscordMaker Setup")
-                        await asyncio.sleep(0.5)
-                    except discord.Forbidden:
-                        await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le salon `{channel_name}`.")
-
-                # Salons vocaux
-                for channel_name in structure["voice"]:
-                    voice_overwrites = cat_overwrites.copy()
-                    try:
-                        if "AFK" in channel_name and verified_role:
-                            voice_overwrites[verified_role] = discord.PermissionOverwrite(speak=False)
-                        await guild.create_voice_channel(channel_name, category=category, overwrites=voice_overwrites, reason="DiscordMaker Setup")
-                        await asyncio.sleep(0.5)
-                    except discord.Forbidden:
-                        await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le salon `{channel_name}`.")
-
-        # --- Système de vérification ---
-        if config.get("verification_system") == "enabled":
-            verification_channel = discord.utils.get(guild.text_channels, name="✅・vérification")
-            verified_role = discord.utils.get(guild.roles, name="Vérifié")
-            if verification_channel and verified_role:
                 embed = discord.Embed(
-                    title=f"Bienvenue sur {guild.name} !",
-                    description="Pour accéder au reste du serveur et discuter avec les autres membres, "
-                                "veuillez cliquer sur le bouton ci-dessous.\n\n"
-                                "Cela confirme que vous avez lu et accepté les règles.",
-                    color=discord.Color.green()
+                    title="⚠️ CONFIRMATION DE SUPPRESSION TOTALE ⚠️",
+                    description=f"**Vous avez demandé une suppression totale du serveur `{guild.name}` via la commande `start`.**\n\n"
+                                "Pour confirmer, veuillez taper `OUI` en majuscules dans ce salon dans les 30 secondes.",
+                    color=discord.Color.dark_red()
                 )
-                embed.set_footer(text="Si vous rencontrez un problème, contactez un membre du staff.")
-                await verification_channel.send(embed=embed, view=VerificationView(verified_role))
+                await interaction.followup.send(embed=embed, ephemeral=True)
 
-        # Si un nettoyage a eu lieu, le salon original n'existe peut-être plus. On envoie un DM.
-        if config.get("cleanup_policy") == "delete":
-            try:
-                await interaction.user.send(f"✅ La construction du serveur **{guild.name}** est terminée !")
-            except discord.Forbidden:
-                print(f"Impossible d'envoyer un DM à {interaction.user} pour confirmer la fin de la construction.")
-        else:
-            await interaction.followup.send("✅ Construction du serveur terminée !", ephemeral=True)
+                def check(m: discord.Message):
+                    return m.author == interaction.user and m.channel == interaction.channel and m.content == "OUI"
+
+                try:
+                    msg = await self.bot.wait_for('message', check=check, timeout=30.0)
+                    await msg.delete()
+                except asyncio.TimeoutError:
+                    await interaction.followup.send("❌ Délai de confirmation dépassé. Opération annulée.", ephemeral=True)
+                    return
+                except discord.HTTPException:
+                    pass # Pas grave si on ne peut pas supprimer le message de confirmation
+
+                # Création et envoi de la sauvegarde avant la suppression
+                await interaction.followup.send("🔄 Création d'une sauvegarde du serveur avant suppression...", ephemeral=True)
+                backup_file_path = await create_server_backup(guild)
+                if backup_file_path:
+                    try:
+                        embed_backup = discord.Embed(title=f"📄 Sauvegarde du serveur {guild.name}", description="Voici une sauvegarde de la structure de votre serveur (rôles et salons) avant sa réinitialisation complète. **Conservez ce fichier précieusement.**", color=discord.Color.orange())
+                        embed_backup.add_field(name="À quoi sert ce fichier ?", value="Ce fichier `.json` contient les informations sur vos rôles, salons et permissions. Il peut être utilisé avec la commande `/discordmaker restore` pour recréer cette structure.", inline=False)
+                        embed_backup.set_footer(text="⚠️ ATTENTION : Cette sauvegarde n'inclut PAS les messages, les membres, ou les fichiers du serveur.")
+                        await interaction.user.send(embed=embed_backup, file=discord.File(backup_file_path))
+                    except discord.Forbidden:
+                        await interaction.followup.send("⚠️ Impossible de vous envoyer la sauvegarde en DM. Vos messages privés sont probablement fermés.", ephemeral=True)
+                await self._full_cleanup_guild(guild)
+
+            # --- Création des rôles ---
+            created_roles = {}
+            # Trier les rôles pour créer les plus hauts en premier
+            role_creation_order = sorted(
+                config.get("roles", []),
+                key=lambda r: list(ROLE_DATA.keys()).index(r) if r in ROLE_DATA else -1,
+                reverse=True
+            )
+
+            if config.get("roles"):
+                for role_name in role_creation_order:
+                    existing_role = discord.utils.get(guild.roles, name=role_name)
+                    if existing_role:
+                        created_roles[role_name] = existing_role
+                        continue
+
+                    role_data = ROLE_DATA.get(role_name, {})
+                    permissions = role_data.get("permissions", discord.Permissions.none())
+                    color = role_data.get("color", discord.Color.default())
+                    # Les rôles VIP et Muted ne sont pas affichés séparément
+                    hoist = role_name in ["Owner", "Admin", "Modérateur", "Animateur"]
+                    try:
+                        role = await guild.create_role(name=role_name, permissions=permissions, color=color, reason="DiscordMaker Setup", hoist=hoist)
+                        # --- MARQUAGE DANS LA DB ---
+                        conn = get_db_connection()
+                        conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, role.id, 'role'))
+                        conn.commit()
+                        conn.close()
+                        created_roles[role_name] = role
+                        await asyncio.sleep(0.5)
+                    except discord.Forbidden:
+                        await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le rôle `{role_name}`.")
+                        continue
+
+            # --- Création des salons ---
+            if config.get("channel_categories"):
+                # Récupération des rôles clés pour les permissions
+                verified_role = created_roles.get("Vérifié") or discord.utils.get(guild.roles, name="Vérifié")
+                admin_role = created_roles.get("Admin") or discord.utils.get(guild.roles, name="Admin")
+                mod_role = created_roles.get("Modérateur") or discord.utils.get(guild.roles, name="Modérateur")
+
+                for category_name in config["channel_categories"]:
+                    structure = CHANNEL_STRUCTURE.get(category_name)
+                    if not structure:
+                        continue
+
+                    # Définition des permissions de base pour la catégorie
+                    cat_overwrites = {guild.me: discord.PermissionOverwrite(view_channel=True)}
+                    if structure.get("staff_only"):
+                        cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False)
+                        if admin_role: cat_overwrites[admin_role] = discord.PermissionOverwrite(view_channel=True)
+                        if mod_role: cat_overwrites[mod_role] = discord.PermissionOverwrite(view_channel=True)
+                    elif config.get("verification_system") == "enabled":
+                        cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False)
+                        if verified_role: cat_overwrites[verified_role] = discord.PermissionOverwrite(view_channel=True)
+                    
+                    # Cas spécial pour la catégorie ACCUEIL
+                    if "ACCUEIL" in category_name:
+                        cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
+
+                    # Création de la catégorie
+                    try:
+                        category = await guild.create_category(category_name, overwrites=cat_overwrites, reason="DiscordMaker Setup")
+                        # --- MARQUAGE DANS LA DB ---
+                        conn = get_db_connection()
+                        conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, category.id, 'category'))
+                        conn.commit()
+                        conn.close()
+                        await asyncio.sleep(0.5)
+                    except discord.Forbidden:
+                        await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer la catégorie `{category_name}`.")
+                        continue
+
+                    # Salons textuels
+                    for channel_name in structure["text"]:
+                        chan_overwrites = cat_overwrites.copy() # Hérite des permissions de la catégorie
+                        # Permissions spécifiques au salon
+                        if "annonces" in channel_name and verified_role:
+                            chan_overwrites[verified_role] = discord.PermissionOverwrite(send_messages=False)
+                        if "vérification" in channel_name: # Visible par tous, mais personne ne peut écrire
+                            chan_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
+                        
+                        try:
+                            new_channel = await guild.create_text_channel(channel_name, category=category, overwrites=chan_overwrites, reason="DiscordMaker Setup")
+                            # --- MARQUAGE DANS LA DB ---
+                            conn = get_db_connection()
+                            conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
+                            conn.commit()
+                            conn.close()
+                            await asyncio.sleep(0.5)
+                            # Logique intelligente : si on crée le salon de logs, on le configure automatiquement
+                            if "logs-modération" in channel_name:
+                                conn = get_db_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (guild.id, new_channel.id))
+                                conn.commit()
+                                conn.close()
+                        except discord.Forbidden:
+                            await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le salon `{channel_name}`.")
+
+                    # Salons vocaux
+                    for channel_name in structure["voice"]:
+                        voice_overwrites = cat_overwrites.copy()
+                        try:
+                            if "AFK" in channel_name and verified_role:
+                                voice_overwrites[verified_role] = discord.PermissionOverwrite(speak=False)
+                            new_channel = await guild.create_voice_channel(channel_name, category=category, overwrites=voice_overwrites, reason="DiscordMaker Setup")
+                            # --- MARQUAGE DANS LA DB ---
+                            conn = get_db_connection()
+                            conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
+                            conn.commit()
+                            conn.close()
+                            await asyncio.sleep(0.5)
+                        except discord.Forbidden:
+                            await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le salon `{channel_name}`.")
+
+            # --- Système de vérification ---
+            if config.get("verification_system") == "enabled":
+                verification_channel = discord.utils.get(guild.text_channels, name="✅・vérification")
+                if verification_channel:
+                    embed = discord.Embed(
+                        title=f"Bienvenue sur {guild.name} !",
+                        description="Pour accéder au reste du serveur et discuter avec les autres membres, "
+                                    "veuillez cliquer sur le bouton ci-dessous.\n\n"
+                                    "Cela confirme que vous avez lu et accepté les règles.",
+                        color=discord.Color.green()
+                    )
+                    embed.set_footer(text="Si vous rencontrez un problème, contactez un membre du staff.")
+                    await verification_channel.send(embed=embed, view=VerificationView())
+
+            # Si un nettoyage a eu lieu, le salon original n'existe peut-être plus. On envoie un DM.
+            if config.get("cleanup_policy") == "delete":
+                try:
+                    await interaction.user.send(f"✅ La construction du serveur **{guild.name}** est terminée !")
+                except discord.Forbidden:
+                    print(f"Impossible d'envoyer un DM à {interaction.user} pour confirmer la fin de la construction.")
+            else:
+                await interaction.followup.send("✅ Construction du serveur terminée !", ephemeral=True)
 
     @maker_group.command(name="reset", description="Nettoie les rôles et salons créés par le bot.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -625,6 +756,21 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             await interaction.response.send_message(f"❌ Fichier de sauvegarde invalide ou corrompu : {e}", ephemeral=True)
             return
 
+        # --- VALIDATION DE SÉCURITÉ ---
+        # Limiter le nombre total d'éléments pour prévenir les abus
+        MAX_ROLES = 250 # Limite de Discord est 250, on peut être un peu plus strict
+        MAX_CHANNELS = 500 # Limite de Discord est 500
+
+        num_roles = len(backup_data.get("roles", []))
+        num_channels = len(backup_data.get("channels", []))
+
+        if num_roles > MAX_ROLES or num_channels > MAX_CHANNELS:
+            error_msg = f"❌ Fichier de sauvegarde rejeté pour des raisons de sécurité. Trop d'éléments détectés.\n" \
+                        f"- Rôles : {num_roles} (max: {MAX_ROLES})\n" \
+                        f"- Salons : {num_channels} (max: {MAX_CHANNELS})"
+            await interaction.response.send_message(error_msg, ephemeral=True)
+            return
+
         class ConfirmRestoreView(discord.ui.View):
             def __init__(self, cog_instance, bot_instance, backup_filename: str):
                 super().__init__(timeout=60)
@@ -671,22 +817,25 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 except discord.HTTPException:
                     pass
 
-                try:
-                    if self.full_reset:
-                        await view_interaction.followup.send("💥 Suppression totale du serveur en cours... Les prochaines étapes seront envoyées en message privé.", ephemeral=True)
-                        await self.cog_instance._full_cleanup_guild(guild)
-                        await view_interaction.user.send(f"🔄 Restauration du serveur **{guild.name}** en cours... Cela peut prendre plusieurs minutes.")
-                    else:
-                        await view_interaction.followup.send("🔄 Restauration en cours... Cela peut prendre plusieurs minutes.", ephemeral=True)
+                # Acquérir le verrou pour empêcher le redémarrage
+                async with self.bot_instance.critical_operation_lock:
+                    try:
+                        if self.full_reset:
+                            await view_interaction.followup.send("💥 Suppression totale du serveur en cours... Les prochaines étapes seront envoyées en message privé.", ephemeral=True)
+                            await self.cog_instance._full_cleanup_guild(guild)
+                            await view_interaction.user.send(f"🔄 Restauration du serveur **{guild.name}** en cours... Cela peut prendre plusieurs minutes.")
+                        else:
+                            await view_interaction.followup.send("🔄 Restauration en cours... Cela peut prendre plusieurs minutes.", ephemeral=True)
 
-                    await self.cog_instance._restore_from_backup(guild, backup_data)
+                        await self.cog_instance._restore_from_backup(guild, backup_data)
 
-                    if self.full_reset:
-                        await view_interaction.user.send(f"✅ La restauration du serveur **{guild.name}** est terminée.")
-                    else:
-                        await view_interaction.followup.send("✅ Restauration terminée !", ephemeral=True)
-                except (discord.Forbidden, discord.HTTPException):
-                    pass
+                        if self.full_reset:
+                            await view_interaction.user.send(f"✅ La restauration du serveur **{guild.name}** est terminée.")
+                        else:
+                            await view_interaction.followup.send("✅ Restauration terminée !", ephemeral=True)
+                    except (discord.Forbidden, discord.HTTPException, RuntimeError) as e:
+                        # On attrape aussi RuntimeError pour l'échec critique
+                        await view_interaction.user.send(f"❌ Une erreur critique est survenue lors de la restauration du serveur **{guild.name}** : {e}")
 
             @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
             async def cancel(self, view_interaction: discord.Interaction, button: discord.ui.Button):
@@ -732,130 +881,8 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             description="Utilisez le menu ci-dessous pour sélectionner les rôles que vous souhaitez obtenir (notifications, jeux, etc.).\nVous pouvez en sélectionner plusieurs.",
             color=discord.Color.gold()
         )
-        await target_channel.send(embed=embed, view=RoleMenuView(final_assignable_roles))
+        await target_channel.send(embed=embed, view=RoleMenuView(final_assignable_roles, self.bot))
         await interaction.response.send_message(f"✅ Le message de sélection de rôles a été envoyé dans {target_channel.mention}.", ephemeral=True)
-
-    async def _cleanup_guild(self, guild: discord.Guild):
-        """Supprime uniquement les rôles et salons définis dans les constantes du bot."""
-        
-        # Créer la liste des noms d'éléments connus du bot
-        known_channel_names = set(CHANNEL_STRUCTURE.keys())
-        for category_data in CHANNEL_STRUCTURE.values():
-            for chan in category_data.get("text", []):
-                known_channel_names.add(chan)
-            for chan in category_data.get("voice", []):
-                known_channel_names.add(chan)
-
-        known_role_names = set(ROLE_DATA.keys())
-
-        # Supprimer les salons et catégories connus (en ordre inversé pour les catégories)
-        for channel in reversed(guild.channels):
-            if channel.name in known_channel_names:
-                try:
-                    await channel.delete(reason="DiscordMaker Smart Reset")
-                    await asyncio.sleep(0.5)
-                except (discord.Forbidden, discord.HTTPException):
-                    print(f"Impossible de supprimer le salon {channel.name} (Smart Reset)")
-
-        # Supprimer les rôles connus
-        for role in guild.roles:
-            if role.name not in known_role_names:
-                continue
-            if role.is_default() or role.is_bot_managed() or role.position >= guild.me.top_role.position:
-                continue
-            try:
-                await role.delete(reason="DiscordMaker Smart Reset")
-                await asyncio.sleep(0.5)
-            except (discord.Forbidden, discord.HTTPException):
-                print(f"Impossible de supprimer le rôle {role.name} (Smart Reset)")
-
-    async def _full_cleanup_guild(self, guild: discord.Guild):
-        """Supprime TOUS les salons et rôles gérables sur le serveur."""
-        # Supprimer les salons
-        for channel in guild.channels:
-            try:
-                await channel.delete(reason="DiscordMaker Full Reset")
-                await asyncio.sleep(0.5)
-            except (discord.Forbidden, discord.HTTPException):
-                print(f"Impossible de supprimer le salon {channel.name} (Full Reset)")
-
-        # Supprimer les rôles
-        for role in guild.roles:
-            if role.is_default() or role.is_bot_managed() or role.position >= guild.me.top_role.position:
-                continue
-            try:
-                await role.delete(reason="DiscordMaker Full Reset")
-                await asyncio.sleep(0.5)
-            except (discord.Forbidden, discord.HTTPException):
-                print(f"Impossible de supprimer le rôle {role.name} (Full Reset)")
-    
-    async def _restore_from_backup(self, guild: discord.Guild, data: dict):
-        """Logique de restauration des rôles et salons depuis les données de sauvegarde."""
-        # --- Étape 1: Restaurer les rôles ---
-        created_roles = {} # Dico pour mapper nom de rôle -> objet Role
-        # Trier les rôles par position (du plus haut au plus bas) pour la création
-        sorted_roles_data = sorted(data.get("roles", []), key=lambda r: r.get("position", 0), reverse=True)
-
-        for role_data in sorted_roles_data:
-            role_name = role_data.get("name")
-            if not role_name or role_name == "@everyone":
-                continue
-            
-            try:
-                # Ne pas recréer les rôles qui existent déjà (cas d'un reset non-total)
-                existing_role = discord.utils.get(guild.roles, name=role_name)
-                if existing_role:
-                    created_roles[role_name] = existing_role
-                    continue
-
-                new_role = await guild.create_role(
-                    name=role_name,
-                    permissions=discord.Permissions(role_data.get("permissions", 0)),
-                    color=discord.Color.from_rgb(*role_data.get("color", [0, 0, 0])),
-                    hoist=role_data.get("hoist", False),
-                    mentionable=role_data.get("mentionable", False),
-                    reason="Restauration depuis sauvegarde"
-                )
-                created_roles[role_name] = new_role
-                await asyncio.sleep(0.5)
-            except (discord.Forbidden, discord.HTTPException) as e:
-                print(f"Erreur lors de la création du rôle {role_name}: {e}")
-
-        # --- Étape 2: Restaurer les catégories et salons ---
-        created_categories = {} # Dico pour mapper ancien ID de catégorie -> objet CategoryChannel
-        channels_data = sorted(data.get("channels", []), key=lambda c: c.get("position", 0))
-
-        # Créer les catégories d'abord
-        for channel_data in channels_data:
-            if channel_data.get("type") == "category":
-                try:
-                    new_cat = await guild.create_category(name=channel_data["name"], reason="Restauration")
-                    created_categories[channel_data.get("id")] = new_cat
-                    await asyncio.sleep(0.5)
-                except (discord.Forbidden, discord.HTTPException) as e:
-                    print(f"Erreur lors de la création de la catégorie {channel_data['name']}: {e}")
-
-        # Créer les salons ensuite
-        for channel_data in channels_data:
-            chan_type = channel_data.get("type")
-            if chan_type in ["text", "voice"]:
-                category_obj = created_categories.get(channel_data.get("category_id"))
-                
-                # Recréer les overwrites
-                overwrites = {}
-                for target_name, perms_data in channel_data.get("overwrites", {}).items():
-                    target_obj = discord.utils.get(guild.roles, name=target_name) or guild.default_role
-                    if target_obj:
-                        overwrites[target_obj] = discord.PermissionOverwrite.from_pair(discord.Permissions(perms_data["allow"]), discord.Permissions(perms_data["deny"]))
-
-                try:
-                    if chan_type == "text":
-                        await guild.create_text_channel(name=channel_data["name"], category=category_obj, overwrites=overwrites, reason="Restauration")
-                    elif chan_type == "voice":
-                        await guild.create_voice_channel(name=channel_data["name"], category=category_obj, overwrites=overwrites, reason="Restauration")
-                    await asyncio.sleep(0.5)
-                except (discord.Forbidden, discord.HTTPException) as e:
-                    print(f"Erreur lors de la création du salon {channel_data['name']}: {e}")
 
     @setup.error
     @start.error
@@ -869,11 +896,10 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             await interaction.response.send_message("❌ Vous devez être administrateur pour utiliser cette commande.", ephemeral=True)
         else:
             print(f"Erreur dans DiscordMaker: {error}")
-            if isinstance(error, app_commands.CheckFailure): # Pour le @app_commands.checks.is_owner()
-                return # L'erreur est déjà gérée manuellement dans la commande
+            if isinstance(error, app_commands.CommandInvokeError):
+                error = error.original
             error_message = f"Une erreur inattendue est survenue: {error}"
             try:
-                # Tente de répondre à l'interaction normalement
                 if not interaction.response.is_done(): # noqa
                     await interaction.response.send_message(error_message, ephemeral=True)
                 else:
@@ -883,16 +909,163 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 if e.code == 10003:
                     await interaction.user.send(f"Une erreur est survenue sur le serveur **{interaction.guild.name}** et je n'ai pas pu répondre dans le salon (il a probablement été supprimé).\nErreur: `{error}`")
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        """Ré-enregistre les vues persistantes au redémarrage du bot."""
-        for guild in self.bot.guilds:
-            config = load_config(guild.id)
-            if config.get("verification_system") == "enabled":
-                verified_role = discord.utils.get(guild.roles, name="Vérifié")
-                if verified_role:
-                    self.bot.add_view(VerificationView(verified_role), message_id=None)
-        # La persistance de RoleMenuView nécessiterait une base de données pour être fiable après un redémarrage.
+    async def _cleanup_guild(self, guild: discord.Guild):
+        """Nettoie UNIQUEMENT les rôles et salons créés par le bot, en se basant sur la DB."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT element_id, element_type FROM created_elements WHERE guild_id = ?", (guild.id,))
+        elements_to_delete = cursor.fetchall()
+
+        # Trier pour supprimer les salons avant les catégories
+        channels = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'channel']
+        categories = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'category']
+        roles = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'role']
+
+        # Suppression des salons
+        for channel_id in channels:
+            channel = guild.get_channel(channel_id)
+            if channel:
+                try:
+                    await channel.delete(reason="DiscordMaker Reset")
+                    await asyncio.sleep(0.5)
+                except discord.Forbidden:
+                    print(f"Permissions manquantes pour supprimer le salon {channel.name} ({channel.id})")
+                except discord.HTTPException as e:
+                    print(f"Erreur HTTP lors de la suppression du salon {channel_id}: {e}")
+
+        # Suppression des catégories
+        for category_id in categories:
+            category = guild.get_channel(category_id)
+            if category:
+                try:
+                    await category.delete(reason="DiscordMaker Reset")
+                    await asyncio.sleep(0.5)
+                except discord.Forbidden:
+                    print(f"Permissions manquantes pour supprimer la catégorie {category.name} ({category.id})")
+                except discord.HTTPException as e:
+                    print(f"Erreur HTTP lors de la suppression de la catégorie {category_id}: {e}")
+
+        # Suppression des rôles
+        for role_id in roles:
+            role = guild.get_role(role_id)
+            if role and not role.is_integration() and not role.is_premium_subscriber() and role < guild.me.top_role:
+                try:
+                    await role.delete(reason="DiscordMaker Reset")
+                    await asyncio.sleep(0.5)
+                except discord.Forbidden:
+                    print(f"Permissions manquantes pour supprimer le rôle {role.name} ({role.id})")
+                except discord.HTTPException as e:
+                    print(f"Erreur HTTP lors de la suppression du rôle {role_id}: {e}")
+
+        # Vider la table pour ce serveur
+        cursor.execute("DELETE FROM created_elements WHERE guild_id = ?", (guild.id,))
+        conn.commit()
+        conn.close()
+
+    async def _full_cleanup_guild(self, guild: discord.Guild):
+        """Supprime TOUS les rôles et salons que le bot peut gérer."""
+        # Suppression des salons
+        for channel in guild.channels:
+            try:
+                await channel.delete(reason="DiscordMaker Full Reset")
+                await asyncio.sleep(0.5)
+            except (discord.Forbidden, discord.HTTPException):
+                print(f"Impossible de supprimer le salon {channel.name} ({channel.id})")
+
+        # Suppression des rôles (sauf @everyone, rôles d'intégration/boost et rôles au-dessus du bot)
+        for role in guild.roles:
+            if role.is_default() or role.is_integration() or role.is_premium_subscriber() or role >= guild.me.top_role:
+                continue
+            try:
+                await role.delete(reason="DiscordMaker Full Reset")
+                await asyncio.sleep(0.5)
+            except (discord.Forbidden, discord.HTTPException):
+                print(f"Impossible de supprimer le rôle {role.name} ({role.id})")
+
+    async def _restore_from_backup(self, guild: discord.Guild, backup_data: dict):
+        """Restaure les rôles et salons depuis les données de sauvegarde."""
+        # --- Phase 1: Création des rôles ---
+        created_roles = {}
+        for role_data in reversed(backup_data.get("roles", [])): # Créer du plus haut au plus bas
+            try:
+                role = await guild.create_role(
+                    name=role_data["name"],
+                    permissions=discord.Permissions(role_data["permissions"]),
+                    color=discord.Color.from_rgb(*role_data["color"]),
+                    hoist=role_data.get("hoist", False),
+                    mentionable=role_data.get("mentionable", False),
+                    reason="DiscordMaker Restore"
+                )
+                created_roles[role_data["name"]] = role
+                await asyncio.sleep(0.5)
+            except (discord.Forbidden, discord.HTTPException) as e:
+                print(f"Erreur lors de la création du rôle {role_data['name']}: {e}")
+
+        # --- Phase 2: Création des catégories et salons ---
+        created_channels = {}
+        # D'abord les catégories
+        for channel_data in backup_data.get("channels", []):
+            if channel_data["type"] == "category":
+                try:
+                    category = await guild.create_category(
+                        name=channel_data["name"],
+                        position=channel_data.get("position"),
+                        reason="DiscordMaker Restore"
+                    )
+                    created_channels[channel_data["id"]] = category
+                    await asyncio.sleep(0.5)
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    print(f"Erreur lors de la création de la catégorie {channel_data['name']}: {e}")
+
+        # Ensuite les autres salons
+        for channel_data in backup_data.get("channels", []):
+            if channel_data["type"] != "category":
+                chan_type = channel_data["type"]
+                category = created_channels.get(channel_data["category_id"])
+
+                create_func = None
+                if chan_type == "text":
+                    create_func = guild.create_text_channel
+                elif chan_type == "voice":
+                    create_func = guild.create_voice_channel
+
+                if create_func:
+                    try:
+                        channel = await create_func(
+                            name=channel_data["name"],
+                            category=category,
+                            position=channel_data.get("position"),
+                            reason="DiscordMaker Restore"
+                        )
+                        created_channels[channel_data["id"]] = channel
+                        await asyncio.sleep(0.5)
+                    except (discord.Forbidden, discord.HTTPException) as e:
+                        print(f"Erreur lors de la création du salon {channel_data['name']}: {e}")
+
+        # --- Phase 3: Application des permissions (overwrites) ---
+        for channel_data in backup_data.get("channels", []):
+            channel = created_channels.get(channel_data["id"])
+            if not channel:
+                continue
+
+            overwrites = {}
+            for target_name, perms_data in channel_data.get("overwrites", {}).items():
+                target = None
+                if perms_data["type"] == "role":
+                    target = created_roles.get(target_name) or discord.utils.get(guild.roles, name=target_name)
+                # La restauration des permissions pour un membre spécifique n'est pas gérée ici pour la simplicité
+
+                if target:
+                    overwrites[target] = discord.PermissionOverwrite.from_pair(
+                        discord.Permissions(perms_data["allow"]),
+                        discord.Permissions(perms_data["deny"])
+                    )
+
+            try:
+                await channel.edit(overwrites=overwrites, reason="DiscordMaker Restore Permissions")
+                await asyncio.sleep(0.5)
+            except (discord.Forbidden, discord.HTTPException) as e:
+                print(f"Erreur lors de l'application des permissions pour {channel.name}: {e}")
 
 # --- Setup du cog ---
 async def setup(bot: commands.Bot, **kwargs):

@@ -43,7 +43,36 @@ def initialize_database():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    # Ajoutez ici les autres tables au fur et à mesure des besoins
+
+    # Table pour les configurations spécifiques au serveur (ex: salon de logs)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS guild_settings (
+            guild_id INTEGER PRIMARY KEY,
+            mod_log_channel_id INTEGER,
+            ticket_category_id INTEGER
+        )
+    ''')
+
+    # Table pour suivre les éléments créés par le bot (pour un reset infaillible)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS created_elements (
+            guild_id INTEGER NOT NULL,
+            element_id INTEGER NOT NULL,
+            element_type TEXT NOT NULL, -- 'role', 'channel', 'category'
+            PRIMARY KEY (guild_id, element_id)
+        )
+    ''')
+
+    # Table pour le système de niveaux (leveling)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_levels (
+            guild_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            xp INTEGER DEFAULT 0,
+            level INTEGER DEFAULT 0,
+            PRIMARY KEY (guild_id, user_id)
+        )
+    ''')
 
     conn.commit()
     conn.close()

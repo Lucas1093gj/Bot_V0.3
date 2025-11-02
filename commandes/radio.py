@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from .music import FFMPEG_OPTIONS # On peut garder cet import car il est simple et ne dépend de rien d'autre
+from .music import FFMPEG_OPTIONS, GuildMusicState
 
 # Dictionnaire des URLs de flux radio
 RADIO_STREAMS = {
@@ -11,6 +11,33 @@ RADIO_STREAMS = {
     "Contact": "http://icecast.rtbf.be/contact-128.mp3",
     "FunRadio": "http://funradio.ice.infomaniak.ch/funradio-high.mp3",
 }
+
+class ConfirmRadioView(discord.ui.View):
+    def __init__(self, radio_cog, interaction: discord.Interaction, station_choice: app_commands.Choice[str]):
+        super().__init__(timeout=60)
+        self.radio_cog = radio_cog
+        self.interaction = interaction
+        self.station_choice = station_choice
+
+    async def on_timeout(self):
+        await self.interaction.edit_original_response(content="⏰ Délai de confirmation dépassé. Opération annulée.", view=None)
+
+    @discord.ui.button(label="Confirmer", style=discord.ButtonStyle.danger)
+    async def confirm(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+        # Désactiver les boutons
+        for item in self.children:
+            item.disabled = True
+        await self.interaction.edit_original_response(view=self)
+        # Lancer la logique de la radio
+        await self.radio_cog.launch_radio(self.interaction, self.station_choice, confirmed=True)
+
+    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    async def cancel(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+        # Désactiver les boutons
+        for item in self.children:
+            item.disabled = True
+        await self.interaction.edit_original_response(content="✅ Opération annulée. Votre file d'attente est intacte.", view=None)
+
 
 class RadioCog(commands.Cog, name="Radio"):
     def __init__(self, bot: commands.Bot):
@@ -27,42 +54,50 @@ class RadioCog(commands.Cog, name="Radio"):
         app_commands.Choice(name="Fun Radio", value="FunRadio"),
     ])
     async def radio(self, interaction: discord.Interaction, station: app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=False)
-
         if not interaction.user.voice:
-            await interaction.followup.send("❌ Rejoignez d'abord un salon vocal pour lancer la radio.", ephemeral=True)
+            await interaction.response.send_message("❌ Rejoignez d'abord un salon vocal pour lancer la radio.", ephemeral=True)
             return
+
+        # Vérifier si une file d'attente musicale existe
+        music_cog = self.bot.get_cog("MusicCog")
+        if not music_cog:
+            await interaction.response.send_message("❌ Le module de musique semble désactivé. Impossible de continuer.", ephemeral=True)
+            return
+
+        state = music_cog.get_guild_state(interaction.guild.id)
+        if state.queue:
+            embed = discord.Embed(
+                title="⚠️ Confirmation Requise",
+                description="Lancer la radio va **arrêter la musique actuelle et vider la file d'attente**.\n\nVoulez-vous continuer ?",
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=embed, view=ConfirmRadioView(self, interaction, station), ephemeral=True)
+        else:
+            # Pas de file d'attente, on lance directement
+            await self.launch_radio(interaction, station)
+
+    async def launch_radio(self, interaction: discord.Interaction, station: app_commands.Choice[str], confirmed: bool = False):
+        if not confirmed and not interaction.response.is_done():
+            await interaction.response.defer()
 
         stream_url = RADIO_STREAMS.get(station.value)
-        # Trouver la station par son nom
-        if not stream_url:
-            await interaction.followup.send(f"❌ La station {station.name} n'est pas configurée.", ephemeral=True)
-            return
 
-        # 1. Connexion au salon vocal
         try:
             vc = interaction.guild.voice_client or await interaction.user.voice.channel.connect()
         except discord.ClientException:
-            await interaction.followup.send("❌ Le bot est déjà connecté ailleurs.", ephemeral=True)
-            return
-        except Exception as e:
-            await interaction.followup.send(f"❌ Erreur de connexion vocale: {e}", ephemeral=True)
+            await interaction.followup.send("❌ Le bot est déjà connecté à un autre salon.", ephemeral=True)
             return
 
-        # 2. Arrêter la musique ou la radio précédente
         if vc.is_playing() or vc.is_paused():
             vc.stop()
 
-        # On vide la file d'attente de musique car la radio est un flux continu
-        if interaction.guild.id in self.bot.music_queues:
-            self.bot.music_queues[interaction.guild.id] = []
+        music_cog = self.bot.get_cog("MusicCog")
+        state = music_cog.get_guild_state(interaction.guild.id)
+        async with state.lock:
+            state.queue.clear()
+            music_cog._save_state(interaction.guild.id, state) # CORRECTION: Utilise la bonne fonction de sauvegarde
 
-        # 3. Démarrer le flux radio
-        guild_id = interaction.guild.id
-        # Assurer un volume par défaut (15%) si non défini
-        volume = self.bot.bot_volume_levels.get(guild_id, 0.15)
-        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS), volume=volume)
-
+        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS), volume=state.volume)
         vc.play(source, after=lambda e: print(f'Erreur de lecture radio: {e}') if e else None)
 
         embed = discord.Embed(
@@ -70,7 +105,7 @@ class RadioCog(commands.Cog, name="Radio"):
             description=f"Le bot diffuse maintenant la radio en direct. Utilisez `/musique volume` pour ajuster le son.",
             color=discord.Color.green()
         )
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed, view=None) # view=None pour nettoyer les boutons de confirmation
 
 async def setup(bot: commands.Bot, **kwargs):
     await bot.add_cog(RadioCog(bot))

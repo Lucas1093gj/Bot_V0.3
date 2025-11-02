@@ -16,6 +16,7 @@ class HelpSelect(discord.ui.Select):
             discord.SelectOption(label="DiscordMaker", description="Commandes pour construire et gérer le serveur.", emoji="⚙️"),
             discord.SelectOption(label="Musique & Radio", description="Commandes pour le lecteur musical et la radio.", emoji="🎵"),
             discord.SelectOption(label="Modération", description="Outils pour les modérateurs.", emoji="🛡️"),
+            discord.SelectOption(label="Tickets", description="Système de support pour contacter le staff.", emoji="🎟️"),
             discord.SelectOption(label="Utilitaires & Fun", description="Commandes utiles et amusantes pour tous.", emoji="🎉"),
         ]
         super().__init__(placeholder="Choisissez une catégorie...", min_values=1, max_values=1, options=options)
@@ -60,10 +61,18 @@ class HelpSelect(discord.ui.Select):
             embed.description = "Outils pour maintenir un environnement sain sur le serveur."
             embed.add_field(name="`/clear [nombre]`", value="Supprime un nombre de messages dans un salon.", inline=False)
             embed.add_field(name="`/warn [membre] [raison]`", value="Avertit un membre et enregistre l'avertissement.", inline=False)
-            embed.add_field(name="`/warnings [membre]`", value="Affiche l'historique des avertissements d'un membre.", inline=False)
+            embed.add_field(name="`/warnings [membre ou ID]`", value="Affiche l'historique des avertissements d'un membre.", inline=False)
+            embed.add_field(name="`/delwarn [id]`", value="Supprime un avertissement spécifique via son ID.", inline=False)
             embed.add_field(name="`/mute [membre] [durée] [raison]`", value="Applique un timeout à un membre (ex: `10m`, `2h`, `7d`).", inline=False)
             embed.add_field(name="`/unmute [membre]`", value="Retire le timeout d'un membre.", inline=False)
+            embed.add_field(name="`/lock [salon] [raison]`", value="Verrouille un salon pour que les membres ne puissent plus y envoyer de messages.", inline=False)
+            embed.add_field(name="`/unlock [salon]`", value="Déverrouille un salon.", inline=False)
             embed.add_field(name="`/getlog`", value="**(Admin)** Récupère la base de données des logs en message privé.", inline=False)
+
+        elif category == "Tickets":
+            embed.title = "🎟️ Aide - Tickets"
+            embed.description = "Un système de support pour une communication privée et structurée entre les membres et le staff."
+            embed.add_field(name="`/ticket open [sujet]`", value="Crée un salon privé (un \"ticket\") visible uniquement par vous et le staff pour discuter d'un problème.", inline=False)
 
         elif category == "Utilitaires & Fun":
             embed.title = "🎉 Aide - Utilitaires & Fun"
@@ -91,6 +100,7 @@ class HelpSelect(discord.ui.Select):
             ⚙️ **DiscordMaker** : Créez un serveur de A à Z.
             🎵 **Musique & Radio** : Animez vos salons vocaux.
             🛡️ **Modération** : Gardez votre communauté saine.
+            🎟️ **Tickets** : Contactez le staff en privé.
             🎉 **Utilitaires & Fun** : Commandes diverses pour tous.
             """,
             inline=False

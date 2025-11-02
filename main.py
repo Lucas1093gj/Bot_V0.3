@@ -1,11 +1,15 @@
 #import
 import discord
 import os
-import asyncio
+import asyncio # noqa
+from dotenv import load_dotenv
+
+#chargement des variables d'environnement depuis le fichier .env (DOIT ÊTRE FAIT AVANT LES AUTRES IMPORTS)
+load_dotenv()
 
 #import des utilitaires
 from discord.ext import commands
-from dotenv import load_dotenv
+
 import db_manager # Import du module de base de données
 
 #chargement des variables d'environnement depuis le fichier .env
@@ -13,6 +17,10 @@ load_dotenv()
 
 #chargement des variables d'environnement
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+# Import des vues persistantes et des fonctions de configuration (après load_dotenv)
+from commandes.discordmaker import VerificationView, RoleMenuView, SELF_ASSIGNABLE_ROLES, load_config as load_dm_config
+from commandes.music import MusicControls
+
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
@@ -38,10 +46,26 @@ async def on_ready():
     # Attacher la connexion DB au bot pour un accès global
     bot.db_conn = db_manager.get_db_connection()
 
-    # Créer un état partagé pour les cogs de musique/radio
-    bot.music_queues = {}
-    bot.bot_volume_levels = {}
-    bot.loop_states = {}
+    # Créer un état partagé pour le cog de musique.
+    bot.music_states = {}
+    
+    # Verrou pour les opérations critiques qui ne doivent pas être interrompues
+    bot.critical_operation_lock = asyncio.Lock()
+
+    # --- Ré-enregistrement des vues persistantes ---
+    print("[Startup] Ré-enregistrement des vues persistantes...")
+    # Vue pour la vérification et les rôles de DiscordMaker
+    for guild in bot.guilds:
+        dm_config = load_dm_config(guild.id)
+        if dm_config.get("verification_system") == "enabled":
+            bot.add_view(VerificationView())
+        
+        assignable_roles = [role for role in dm_config.get("roles", []) if role in SELF_ASSIGNABLE_ROLES]
+        if assignable_roles:
+            bot.add_view(RoleMenuView(assignable_roles, bot))
+
+    # Vues pour le contrôle de la musique
+    bot.add_view(MusicControls(bot.get_cog("MusicCog")))
 
     try:
         # Charger toutes les extensions (Cogs) du dossier 'commandes'

@@ -82,11 +82,20 @@ class UtilsCog(commands.Cog, name="Utilitaires"):
         vc = interaction.guild.voice_client
         new_volume = niveau / 100
 
-        # Sauvegarde le volume pour les futures lectures
-        self.bot.bot_volume_levels[interaction.guild.id] = new_volume
+        # Récupérer le cog de musique pour accéder à l'état
+        music_cog = self.bot.get_cog("MusicCog")
+        if not music_cog:
+            await interaction.response.send_message("❌ Le module de musique semble désactivé.", ephemeral=True)
+            return
 
-        # Applique le volume si quelque chose est en cours de lecture
-        if vc and vc.source:
+        state = music_cog.get_guild_state(interaction.guild.id)
+        state.volume = new_volume
+
+        # Sauvegarder l'état pour que le volume persiste après un redémarrage
+        music_cog._save_state(interaction.guild.id, state)
+
+        # Sauvegarde le volume pour les futures lectures
+        if vc and vc.is_connected() and vc.source:
             vc.source.volume = new_volume
             await interaction.response.send_message(f"🔊 Volume réglé à **{niveau}%** pour la lecture en cours.")
         else:

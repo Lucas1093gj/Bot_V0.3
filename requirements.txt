@@ -1,5 +1,8 @@
-discord.py
+py-cord[voice]
 python-dotenv
 spotipy
 yt-dlp
-# sqlite3 est généralement inclus dans Python, mais l'ajouter ne nuit pas.
+
+# Dépendances pour les tests
+# pytest
+# pytest-asyncio

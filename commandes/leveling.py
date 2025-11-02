@@ -1,0 +1,71 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+from db_manager import get_db_connection
+import random
+import time
+
+class LevelingCog(commands.Cog, name="Leveling"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        # Dictionnaire pour gérer les cooldowns par utilisateur (guild_id, user_id) -> timestamp
+        self.user_cooldowns = {}
+
+    def _calculate_xp_for_level(self, level: int) -> int:
+        """Calcule la quantité d'XP nécessaire pour atteindre un certain niveau."""
+        return 5 * (level ** 2) + 50 * level + 100
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # --- Vérifications initiales ---
+        # 1. Ignorer les bots
+        if message.author.bot:
+            return
+        # 2. Ignorer les messages privés (DMs)
+        if not message.guild:
+            return
+        # 3. Ignorer les commandes pour ne pas donner d'XP pour ça
+        if message.content.startswith(self.bot.command_prefix):
+            return
+
+        # --- Gestion du Cooldown ---
+        user_key = (message.guild.id, message.author.id)
+        current_time = time.time()
+        cooldown_time = self.user_cooldowns.get(user_key, 0)
+
+        if current_time - cooldown_time < 60: # Cooldown de 60 secondes
+            return
+        
+        self.user_cooldowns[user_key] = current_time
+
+        # --- Logique de gain d'XP ---
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Récupérer l'utilisateur ou le créer s'il n'existe pas
+        cursor.execute("SELECT xp, level FROM user_levels WHERE guild_id = ? AND user_id = ?", (message.guild.id, message.author.id))
+        user_data = cursor.fetchone()
+
+        if not user_data:
+            cursor.execute("INSERT INTO user_levels (guild_id, user_id, xp, level) VALUES (?, ?, 0, 0)", (message.guild.id, message.author.id))
+            user_data = {'xp': 0, 'level': 0}
+
+        # Ajouter de l'XP
+        xp_to_add = random.randint(15, 25)
+        new_xp = user_data['xp'] + xp_to_add
+        
+        # Vérifier si l'utilisateur monte de niveau
+        xp_needed = self._calculate_xp_for_level(user_data['level'])
+        new_level = user_data['level']
+        if new_xp >= xp_needed:
+            new_level += 1
+            await message.channel.send(f"🎉 Bravo {message.author.mention}, vous avez atteint le **niveau {new_level}** !")
+
+        # Mettre à jour la base de données
+        cursor.execute("UPDATE user_levels SET xp = ?, level = ? WHERE guild_id = ? AND user_id = ?", (new_xp, new_level, message.guild.id, message.author.id))
+        conn.commit()
+        conn.close()
+
+# --- Setup du cog ---
+async def setup(bot: commands.Bot):
+    await bot.add_cog(LevelingCog(bot))
