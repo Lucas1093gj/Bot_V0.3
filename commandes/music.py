@@ -339,13 +339,8 @@ class MusicCog(commands.Cog):
             video_url = state.now_playing_info['url']
 
         # La recherche de stream peut être longue, on la sort du verrou
-        ydl_opts_stream = {'format': 'bestaudio/best', 'quiet': True}
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts_stream) as ydl:
-                info = ydl.extract_info(video_url, download=False)
-                stream_url = info['url']
-        except Exception as e:
-            print(f"Erreur lors de la lecture de {state.now_playing_info['title']}: {e}")
+        stream_url = await self._get_stream_url(video_url) # Appel de la nouvelle fonction
+        if not stream_url:
             text_channel = self.bot.get_channel(state.text_channel_id)
             if text_channel:
                 await text_channel.send(f"❌ Erreur lors de la lecture de **{state.now_playing_info['title']}**. Passage à la suivante.")
@@ -412,8 +407,82 @@ class MusicCog(commands.Cog):
 
         return embed
 
+    async def _get_stream_url(self, video_url: str) -> str | None:
+        """Extrait l'URL de streaming directe d'une URL de vidéo (YouTube, etc.)."""
+        ydl_opts_stream = {'format': 'bestaudio/best', 'quiet': True}
+        try:
+            # Exécute la fonction bloquante dans un thread pour ne pas bloquer le bot
+            with yt_dlp.YoutubeDL(ydl_opts_stream) as ydl:
+                info = await self.bot.loop.run_in_executor(
+                    None, lambda: ydl.extract_info(video_url, download=False)
+                )
+                return info['url']
+        except Exception as e:
+            print(f"Erreur lors de l'extraction de l'URL de stream pour {video_url}: {e}")
+            return None
+
+    def _parse_seek_time(self, time_str: str) -> int | None:
+        """Convertit une chaîne de temps comme '1m30s' ou '1:30' en secondes."""
+        # Gère le format "HH:MM:SS" ou "MM:SS"
+        if ':' in time_str:
+            try:
+                parts = list(map(int, time_str.split(':')))
+                seconds = 0
+                for i, part in enumerate(reversed(parts)):
+                    seconds += part * (60**i)
+                return seconds
+            except ValueError:
+                return None # Format invalide comme "1:a"
+        
+        # Gère le format "1d12h30m5s"
+        import re
+        regex = re.compile(r'(\d+)([smhd])')
+        parts = regex.findall(time_str.lower())
+        if parts:
+            time_params = {"days": 0, "hours": 0, "minutes": 0, "seconds": 0}
+            unit_map = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
+            for value, unit in parts:
+                time_params[unit_map[unit]] += int(value)
+            from datetime import timedelta
+            return int(timedelta(**time_params).total_seconds())
+
+        # Gère un nombre simple de secondes
+        try:
+            return int(time_str)
+        except ValueError:
+            return None
+
+    async def _seek_in_current_song(self, guild_id: int, seek_seconds: int):
+        """Relance la lecture de la chanson actuelle à un temps donné."""
+        state = self.get_guild_state(guild_id)
+        guild = self.bot.get_guild(guild_id)
+        vc = guild.voice_client
+
+        if not vc or not state.now_playing_info:
+            return
+
+        song_to_replay = state.now_playing_info.copy()
+        vc.stop()
+        await asyncio.sleep(0.5) # Laisse le temps à vc.stop() de finir
+
+        ffmpeg_options_seek = {
+            'before_options': f'-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {seek_seconds}',
+            'options': '-vn'
+        }
+
+        stream_url = await self._get_stream_url(song_to_replay['url']) # Appel de la nouvelle fonction
+        if not stream_url:
+            text_channel = self.bot.get_channel(state.text_channel_id)
+            if text_channel:
+                await text_channel.send(f"❌ Erreur lors de la tentative de seek sur **{song_to_replay['title']}**. Passage à la suivante.")
+            self.bot.loop.create_task(self.play_next(guild_id))
+            return
+
+        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream_url, **ffmpeg_options_seek), volume=state.volume)
+        state.song_start_time = time.time() - seek_seconds
+        vc.play(source, after=lambda e: self.bot.loop.create_task(self.play_next(guild_id, last_song_info=state.now_playing_info)))
+
     @tasks.loop(seconds=10.0)
-    @tasks.loop(seconds=7.0)
     async def update_now_playing_loop(self):
         """Met à jour tous les messages 'En cours de lecture' actifs."""
         for guild_id, state in self.bot.music_states.items():
@@ -534,6 +603,29 @@ class MusicCog(commands.Cog):
             added_song = await self._add_song_to_queue(interaction, recherche, add_to_top=True)
             if added_song:
                 await interaction.followup.send(f"✅ **{added_song['title']}** sera jouée juste après la musique actuelle.", ephemeral=False)
+
+    @music_group.command(name="seek", description="Avance ou recule la lecture à un moment précis.")
+    @app_commands.describe(temps="Le moment où aller (ex: 1m30s, 90, 1:30).")
+    async def seek(self, interaction: discord.Interaction, temps: str):
+        vc = interaction.guild.voice_client
+        if not vc or not vc.is_playing():
+            return await interaction.response.send_message("❌ Aucune musique n'est en cours de lecture.", ephemeral=True)
+
+        state = self.get_guild_state(interaction.guild.id)
+        if not state.now_playing_info:
+            return await interaction.response.send_message("❌ Aucune information sur la musique en cours.", ephemeral=True)
+
+        seek_seconds = self._parse_seek_time(temps)
+        if seek_seconds is None or seek_seconds < 0:
+            return await interaction.response.send_message("❌ Format de temps invalide. Utilisez par exemple `1m30s` ou `90`.", ephemeral=True)
+
+        song_duration = state.now_playing_info.get('duration', 0)
+        if song_duration > 0 and seek_seconds >= song_duration:
+            return await interaction.response.send_message("❌ Vous ne pouvez pas avancer au-delà de la fin de la musique.", ephemeral=True)
+
+        await interaction.response.send_message(f"⏩ Avance à `{temps}`...")
+
+        await self._seek_in_current_song(interaction.guild.id, seek_seconds)
 
     async def _add_song_to_queue(self, interaction: discord.Interaction, query: str, from_restore: bool = False, add_to_top: bool = False) -> dict | None:
         """Recherche une chanson et l'ajoute à la file d'attente de manière non-bloquante."""

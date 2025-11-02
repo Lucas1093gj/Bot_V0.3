@@ -1,6 +1,14 @@
 {
-    "queue": [],
+    "queue": [
+        {
+            "url": "https://www.youtube.com/watch?v=DeumyOzKqgI",
+            "title": "Adele - Skyfall (Official Lyric Video)",
+            "duration": 289,
+            "thumbnail": "https://i.ytimg.com/vi/DeumyOzKqgI/maxresdefault.jpg",
+            "requester_id": 1358542440436600964
+        }
+    ],
     "loop_mode": null,
     "volume": 0.15,
-    "text_channel_id": 1432449700547657768
+    "text_channel_id": 1434341501001011271
 }
