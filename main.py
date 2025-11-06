@@ -44,8 +44,9 @@ bot.critical_operation_lock = asyncio.Lock()
 LAVALINK_NODES = [
     # Utilisation d'adresses IP directes pour contourner les problèmes de DNS sur le Raspberry Pi.
     # Ces serveurs sont compatibles v4.
-    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US"},
-    {"host": "173.249.0.115", "port": 13592, "password": "https://camming.xyz", "secure": False, "region": "YumiTeam-EU"},
+    # On tente un autre serveur v4 accessible par IP.
+    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "AneFaiz-EU"},
+    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US"}, # Gardé en secours
 ]
 
 @bot.event

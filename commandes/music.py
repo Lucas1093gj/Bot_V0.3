@@ -489,7 +489,7 @@ class MusicCog(commands.Cog):
                     artist_name = track_info['artists'][0]['name']
                     track_name = track_info['name']
                     # On transforme la requête en une recherche YouTube et on la traite comme une recherche normale
-                    query = f"scsearch:{artist_name} - {track_name}"
+                    query = f"ytsearch:{artist_name} - {track_name}"
                 
                 elif "playlist" in query or "album" in query:
                     is_album = "album" in query
@@ -507,7 +507,7 @@ class MusicCog(commands.Cog):
                         if not track: continue
                         artist_name = track['artists'][0]['name']
                         track_name = track['name']
-                        tracks_to_add.append(f"scsearch:{artist_name} - {track_name}")
+                        tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
                     
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
                     await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis {item_type} Spotify en cours...", ephemeral=True)
@@ -524,9 +524,9 @@ class MusicCog(commands.Cog):
 
         # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
-            # On force la recherche sur SoundCloud si ce n'est pas déjà un lien ou une recherche formatée
+            # On force la recherche sur YouTube si ce n'est pas déjà un lien ou une recherche formatée
             if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
-                query = f"scsearch:{query}"
+                query = f"ytsearch:{query}"
 
             tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
         except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
@@ -535,7 +535,7 @@ class MusicCog(commands.Cog):
             return 0
 
         if not tracks:
-            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query.replace('scsearch:', '')}`.", ephemeral=True)
+            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query.replace('ytsearch:', '')}`.", ephemeral=True)
             return 0
 
         added_count = 0
@@ -579,10 +579,10 @@ class MusicCog(commands.Cog):
                     added_count += 1
                 else:
                     # La recherche n'a rien donné, on note le nom pour le rapport
-                    failed_tracks.append(query.replace("scsearch:", "").strip())
+                    failed_tracks.append(query.replace("ytsearch:", "").strip())
             except Exception as e:
                 print(f"[Music Search Error] Failed to process query '{query}': {e}")
-                failed_tracks.append(query.replace("scsearch:", "").strip())
+                failed_tracks.append(query.replace("ytsearch:", "").strip())
                 continue # On ignore les pistes qui ne peuvent pas être trouvées
 
         if add_to_top:
