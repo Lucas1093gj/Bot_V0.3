@@ -525,7 +525,7 @@ class MusicCog(commands.Cog):
         # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
             # Sélectionner le meilleur nœud disponible pour la recherche
-            node = wavelink.Pool.get_node(status=wavelink.NodeStatus.CONNECTED)
+            node = wavelink.Pool.get_node()
 
             # On force la recherche sur YouTube si ce n'est pas déjà un lien ou une recherche formatée
             if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
@@ -573,7 +573,7 @@ class MusicCog(commands.Cog):
         for query in queries:
             try:
                 # On ajoute une petite pause pour ne pas surcharger Lavalink
-                node = wavelink.Pool.get_node(status=wavelink.NodeStatus.CONNECTED)
+                node = wavelink.Pool.get_node()
                 await asyncio.sleep(0.2)
                 tracks = await wavelink.Playable.search(query, node=node) # noqa
                 if tracks:
