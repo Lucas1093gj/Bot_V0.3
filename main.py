@@ -42,14 +42,14 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # --- Liste de nœuds Lavalink v4 mise à jour pour une meilleure fiabilité ---
-    # Ces nœuds sont connus pour être plus stables que les anciens.
-    # On privilégie les nœuds sur les ports 80 et 443 pour éviter les blocages de pare-feu.
-    {"host": "lava.link", "port": 80, "password": "youshallnotpass", "secure": False, "region": "LavaLink-Main-80"},
-    {"host": "lavalink-v4.ajieblogs.eu.org", "port": 443, "password": "https://dsc.gg/ajidevserver", "secure": True, "region": "AjieDev-EU-443"},
-    {"host": "lavalink.devamop.in", "port": 443, "password": "DevamOP", "secure": True, "region": "DevamOP-IN-443"},
-    # En secours, un nœud sur un port non standard mais souvent fiable.
-    {"host": "lavalink.moe", "port": 2333, "password": "youshallnotpass", "secure": False, "region": "Moe-EU-2333"},
+    # --- Liste de nœuds Lavalink v4 mise à jour pour contourner les problèmes de DNS sur le Raspberry Pi ---
+    # On utilise des adresses IP directes pour éviter l'erreur "Name or service not known".
+    # Ces nœuds sont tirés de la liste que vous avez fournie.
+    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US-IP"},
+    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "TriniumHost-EU-IP"},
+    {"host": "173.249.0.115", "port": 13592, "password": "https://camming.xyz", "secure": False, "region": "YumiTeam-IP"},
+    # En secours, un nœud avec un nom de domaine qui fonctionne sur le port 80 standard.
+    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-EU-Host"},
 ]
 
 @bot.event
