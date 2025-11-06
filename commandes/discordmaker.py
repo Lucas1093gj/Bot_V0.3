@@ -735,13 +735,14 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     )
     async def restore(self, interaction: discord.Interaction, backup_file: discord.Attachment):
         """Restaure un serveur depuis un fichier .json. L'option de suppression totale est dans la confirmation."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
         guild = interaction.guild
         if interaction.user.id != guild.owner_id:
-            await interaction.response.send_message("❌ Seul le propriétaire du serveur peut exécuter cette commande.", ephemeral=True)
+            await interaction.followup.send("❌ Seul le propriétaire du serveur peut exécuter cette commande.", ephemeral=True)
             return
 
         if not backup_file.filename.endswith('.json'):
-            await interaction.response.send_message("❌ Le fichier doit être au format `.json`.", ephemeral=True)
+            await interaction.followup.send("❌ Le fichier doit être au format `.json`.", ephemeral=True)
             return
 
         try:
@@ -751,7 +752,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             if "roles" not in backup_data or "channels" not in backup_data:
                 raise ValueError("Structure de sauvegarde invalide.")
         except (json.JSONDecodeError, ValueError) as e:
-            await interaction.response.send_message(f"❌ Fichier de sauvegarde invalide ou corrompu : {e}", ephemeral=True)
+            await interaction.followup.send(f"❌ Fichier de sauvegarde invalide ou corrompu : {e}", ephemeral=True)
             return
 
         # --- VALIDATION DE SÉCURITÉ ---
@@ -766,7 +767,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             error_msg = f"❌ Fichier de sauvegarde rejeté pour des raisons de sécurité. Trop d'éléments détectés.\n" \
                         f"- Rôles : {num_roles} (max: {MAX_ROLES})\n" \
                         f"- Salons : {num_channels} (max: {MAX_CHANNELS})"
-            await interaction.response.send_message(error_msg, ephemeral=True)
+            await interaction.followup.send(error_msg, ephemeral=True)
             return
 
         class ConfirmRestoreView(discord.ui.View):
@@ -848,13 +849,14 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 await view_interaction.response.edit_message(embed=self.create_embed(), view=self)
 
         view = ConfirmRestoreView(self, self.bot, backup_file.filename)
-        await interaction.response.send_message(embed=view.create_embed(), view=view, ephemeral=True)
+        await interaction.followup.send(embed=view.create_embed(), view=view, ephemeral=True)
 
     @maker_group.command(name="post-roles", description="Poste le message pour s'attribuer des rôles.")
     @app_commands.describe(channel="Le salon où envoyer le message. Par défaut, le salon actuel.") # noqa: E501
     @app_commands.checks.has_permissions(administrator=True)
     async def post_roles(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
         """Envoie un message interactif pour l'auto-attribution de rôles."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
         target_channel = channel or interaction.channel
         
         # Charger la configuration du serveur
@@ -865,13 +867,13 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
         final_assignable_roles = [role for role in chosen_roles if role in SELF_ASSIGNABLE_ROLES]
 
         if not final_assignable_roles:
-            await interaction.response.send_message("❌ Aucun rôle auto-attribuable n'est configuré pour ce serveur. Veuillez en ajouter via `/discordmaker setup`.", ephemeral=True)
+            await interaction.followup.send("❌ Aucun rôle auto-attribuable n'est configuré pour ce serveur. Veuillez en ajouter via `/discordmaker setup`.", ephemeral=True)
             return
 
         # Vérifier que ces rôles existent bien sur le serveur
         for role_name in final_assignable_roles:
             if not discord.utils.get(interaction.guild.roles, name=role_name):
-                await interaction.response.send_message(f"❌ Le rôle `{role_name}` n'existe pas. Veuillez le créer avec `/discordmaker start`.", ephemeral=True)
+                await interaction.followup.send(f"❌ Le rôle `{role_name}` n'existe pas. Veuillez le créer avec `/discordmaker start`.", ephemeral=True)
                 return
 
         embed = discord.Embed(
@@ -880,7 +882,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             color=discord.Color.gold()
         )
         await target_channel.send(embed=embed, view=RoleMenuView(final_assignable_roles, self.bot))
-        await interaction.response.send_message(f"✅ Le message de sélection de rôles a été envoyé dans {target_channel.mention}.", ephemeral=True)
+        await interaction.followup.send(f"✅ Le message de sélection de rôles a été envoyé dans {target_channel.mention}.", ephemeral=True)
 
     @setup.error
     @start.error
