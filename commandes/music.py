@@ -148,8 +148,8 @@ class RestoreQueueView(discord.ui.View): # noqa
     async def on_timeout(self):
         """Si l'utilisateur ne répond pas, on supprime la sauvegarde et on continue normalement."""
         _delete_state_backup(self.guild_id)
-        if self.interaction.guild.voice_client:
-            self.interaction.guild.voice_client.waiting_for_restore = False # Baisser le drapeau
+        # On retire le serveur de la liste d'attente
+        self.music_cog.waiting_for_restore.pop(self.guild_id, None)
         await self.interaction.edit_original_response(content="Délai dépassé. La sauvegarde a été ignorée.", view=None)
         # On pourrait lancer la lecture de la chanson demandée ici si nécessaire
 
@@ -170,7 +170,7 @@ class RestoreQueueView(discord.ui.View): # noqa
             return
         
         if loaded_state_data and loaded_state_data.get("queue"):
-            player.waiting_for_restore = False # Baisser le drapeau
+            self.music_cog.waiting_for_restore.pop(self.guild_id, None) # Baisser le drapeau
             # Restaurer le volume et la boucle
             await player.set_volume(loaded_state_data.get("volume", 100))
             loop_mode_str = loaded_state_data.get("loop_mode", "normal").lower() # Utiliser lower()
@@ -192,7 +192,7 @@ class RestoreQueueView(discord.ui.View): # noqa
             await self.interaction.edit_original_response(content="✅ État précédent (file d'attente, volume, boucle) restauré ! La lecture va commencer.", view=None)
         else:
             # Si la sauvegarde est vide ou corrompue, on continue normalement
-            player.waiting_for_restore = False # Baisser le drapeau
+            self.music_cog.waiting_for_restore.pop(self.guild_id, None) # Baisser le drapeau
             await self.interaction.edit_original_response(content="❌ Impossible de trouver la sauvegarde. Lancement d'une nouvelle file d'attente.", view=None)
             await self.music_cog._add_song_to_queue(interaction, self.query)
         
@@ -203,8 +203,7 @@ class RestoreQueueView(discord.ui.View): # noqa
     async def ignore(self, interaction: discord.Interaction, button: discord.ui.Button): # noqa
         await interaction.response.defer()
         _delete_state_backup(self.guild_id)
-        if self.interaction.guild.voice_client:
-            self.interaction.guild.voice_client.waiting_for_restore = False # Baisser le drapeau
+        self.music_cog.waiting_for_restore.pop(self.guild_id, None) # Baisser le drapeau
         await self.interaction.edit_original_response(content="🗑️ Sauvegarde ignorée. Lancement d'une nouvelle file d'attente.", view=None)
         await self.music_cog._add_song_to_queue(self.interaction, self.query)
         self.stop()
@@ -212,6 +211,8 @@ class RestoreQueueView(discord.ui.View): # noqa
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        # Dictionnaire pour suivre les serveurs en attente de restauration
+        self.waiting_for_restore = {}
         # Démarrer la boucle de mise à jour de l'affichage
         try:
             spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
@@ -405,7 +406,7 @@ class MusicCog(commands.Cog):
                 
                 # Vérification pour déconnecter le bot s'il est inactif
                 # On ajoute une condition pour ne pas déconnecter si on attend une restauration
-                elif not player.playing and player.connected and player.queue.is_empty and not getattr(player, 'waiting_for_restore', False):
+                elif not player.playing and player.connected and player.queue.is_empty and player.guild.id not in self.waiting_for_restore:
                     if hasattr(player, 'home') and player.home:
                         await player.home.send("✅ Inactif et file d'attente vide. Déconnexion.")
                     await player.disconnect()
@@ -445,7 +446,7 @@ class MusicCog(commands.Cog):
         # Vérifier s'il y a une sauvegarde de file d'attente
         saved_state = _load_state_data(interaction.guild.id)
         if saved_state and saved_state.get("queue") and player.queue.is_empty and not player.playing:
-            player.waiting_for_restore = True # Lever le drapeau d'attente
+            self.waiting_for_restore[interaction.guild.id] = True # Lever le drapeau d'attente
             view = RestoreQueueView(self, interaction, recherche)
             await interaction.followup.send("🔎 J'ai trouvé une file d'attente précédente pour ce serveur. Voulez-vous la restaurer avant d'ajouter votre nouvelle musique ?", view=view, ephemeral=True)
             return
