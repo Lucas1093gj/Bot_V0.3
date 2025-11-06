@@ -42,11 +42,15 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # --- Liste de nœuds Lavalink v4 optimisée pour le Raspberry Pi ---
-    # On combine une adresse IP directe avec un port standard (80) pour une fiabilité maximale.
-    # Cela évite les problèmes de DNS ET les blocages de pare-feu.
-    {"host": "103.190.133.158", "port": 80, "password": "youshallnotpass", "secure": False, "region": "Lava-IP-Port-80"},
-    # En secours, d'autres nœuds utilisant des adresses IP directes.
+    # --- Liste de nœuds Lavalink v4 publics, optimisée pour la fiabilité ---
+    # Wavelink tentera de se connecter à ces nœuds. S'il ne parvient pas à se connecter à l'un, il essaiera le suivant.
+    # On privilégie les nœuds sur les ports standards (80, 443) et avec des adresses IP directes.
+    
+    # Nœuds sur ports standards (plus susceptibles de passer les pare-feu)
+    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-EU-Host"},
+    {"host": "lavalink-v4.serenetia.com", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "Serenetia-EU-Host"},
+    
+    # Nœuds avec adresse IP directe (évite les problèmes de DNS)
     {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US-IP"},
     {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "TriniumHost-EU-IP"},
 ]
