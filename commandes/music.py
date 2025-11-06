@@ -502,9 +502,6 @@ class MusicCog(commands.Cog):
                     if not player.playing:
                         await player.play(player.queue.get())
                     return 1
-                    # On transforme la requête en une recherche YouTube
-                    query = f"ytsearch:{artist_name} - {track_name}"
-                    # On laisse la suite du code gérer la recherche
 
                 elif "playlist" in query:
                     # C'est une playlist, on la traite en arrière-plan
@@ -523,7 +520,7 @@ class MusicCog(commands.Cog):
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
                     # Le message de confirmation est maintenant envoyé depuis la tâche elle-même pour éviter la confusion.
                     await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis la playlist Spotify en cours...", ephemeral=True)
-                    return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès
+                    return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès et arrête le traitement ici.
 
             except spotipy.SpotifyException as e:
                 print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
