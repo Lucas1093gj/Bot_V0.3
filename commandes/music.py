@@ -173,8 +173,8 @@ class RestoreQueueView(discord.ui.View): # noqa
             player.waiting_for_restore = False # Baisser le drapeau
             # Restaurer le volume et la boucle
             await player.set_volume(loaded_state_data.get("volume", 100))
-            loop_mode_str = loaded_state_data.get("loop_mode", "normal").upper()
-            player.queue.mode = getattr(wavelink.QueueMode, loop_mode_str, wavelink.QueueMode.NORMAL)
+            loop_mode_str = loaded_state_data.get("loop_mode", "normal").lower() # Utiliser lower()
+            player.queue.mode = getattr(wavelink.QueueMode, loop_mode_str, wavelink.QueueMode.normal)
 
             # Ajouter l'ancienne file d'attente
             for track_data in loaded_state_data["queue"]:
@@ -678,13 +678,13 @@ class MusicCog(commands.Cog):
             return await interaction.response.send_message("❌ Le bot n'est pas connecté.", ephemeral=True)
 
         if mode.value == "off":
-            player.queue.mode = wavelink.QueueMode.NORMAL
+            player.queue.mode = wavelink.QueueMode.normal
             await interaction.response.send_message("🔁 Répétition désactivée.")
         elif mode.value == "track":
-            player.queue.mode = wavelink.QueueMode.LOOP
+            player.queue.mode = wavelink.QueueMode.loop
             await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
         elif mode.value == "queue":
-            player.queue.mode = wavelink.QueueMode.LOOP_ALL
+            player.queue.mode = wavelink.QueueMode.loop_all
             await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
 
 
