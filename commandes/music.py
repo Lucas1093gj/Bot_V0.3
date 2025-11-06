@@ -165,11 +165,12 @@ class RestoreQueueView(discord.ui.View): # noqa
         
         # Vérification de sécurité : si le bot a été déconnecté entre-temps
         if not player:
-            await self.interaction.edit_original_response(content="❌ Le bot a été déconnecté. Veuillez relancer la commande.", view=None)
+            await self.interaction.edit_original_response(content="❌ Le bot n'est plus connecté. Veuillez relancer la commande.", view=None)
             _delete_state_backup(self.guild_id)
             return
         
         if loaded_state_data and loaded_state_data.get("queue"):
+            player.waiting_for_restore = False # Baisser le drapeau
             # Restaurer le volume et la boucle
             await player.set_volume(loaded_state_data.get("volume", 100))
             loop_mode_str = loaded_state_data.get("loop_mode", "normal").upper()
@@ -191,6 +192,7 @@ class RestoreQueueView(discord.ui.View): # noqa
             await self.interaction.edit_original_response(content="✅ État précédent (file d'attente, volume, boucle) restauré ! La lecture va commencer.", view=None)
         else:
             # Si la sauvegarde est vide ou corrompue, on continue normalement
+            player.waiting_for_restore = False # Baisser le drapeau
             await self.interaction.edit_original_response(content="❌ Impossible de trouver la sauvegarde. Lancement d'une nouvelle file d'attente.", view=None)
             await self.music_cog._add_song_to_queue(interaction, self.query)
         
@@ -424,8 +426,9 @@ class MusicCog(commands.Cog):
 
         if not player:
             try:
-                player: wavelink.Player = await voice_channel.connect(cls=wavelink.Player)
-            except discord.ClientException:
+                # On ajoute le timeout ici, au bon endroit.
+                player: wavelink.Player = await voice_channel.connect(cls=wavelink.Player, timeout=60)
+            except (discord.ClientException, asyncio.TimeoutError, wavelink.exceptions.ChannelTimeoutException):
                 await interaction.followup.send("❌ Je suis déjà connecté à un autre salon vocal.")
                 return
         elif player.channel != voice_channel:

@@ -80,7 +80,7 @@ async def setup_hook():
             password=config['password'],
             identifier=config.get('region', config['host']) # Utilise la région comme identifiant pour plus de clarté
         ))
-    await wavelink.Pool.connect(nodes=nodes, client=bot, cache_capacity=100, timeout=60)
+    await wavelink.Pool.connect(nodes=nodes, client=bot, cache_capacity=100)
 
     # Chargement des Cogs (extensions)
     print("[Startup] Chargement des Cogs...")
