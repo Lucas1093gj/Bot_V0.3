@@ -44,11 +44,11 @@ bot.critical_operation_lock = asyncio.Lock()
 LAVALINK_NODES = [
     # Utilisation d'adresses IP directes pour contourner les problèmes de DNS sur le Raspberry Pi.
     # Ces serveurs sont compatibles v4.
-    # Nœuds convertis en IP pour une meilleure compatibilité avec le Raspberry Pi.
-    {"host": "135.148.14.16", "port": 80, "password": "youshallnotpass", "secure": False, "region": "LavaLink-EU-IP"},
-    {"host": "154.53.56.226", "port": 80, "password": "DevamOP", "secure": False, "region": "DevamOP-IN-IP"},
-    {"host": "194.163.189.229", "port": 80, "password": "horizxon.studio", "secure": False, "region": "Horizxon-US-IP"},
-    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "AneFaiz-EU-IP"},
+    # Nouveaux nœuds v4, prioritairement par IP.
+    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "AneFaiz-v4"},
+    {"host": "173.249.0.115", "port": 13592, "password": "https://camming.xyz", "secure": False, "region": "YumiTeam-v4"},
+    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-v4"},
+    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-v4-Domain"}, # Gardé en secours
 ]
 
 @bot.event

@@ -1,9 +1,9 @@
 import discord
-import sqlite3
 from discord.ext import commands
 from discord import app_commands
 import datetime
 import re
+from db_manager import get_db_connection
 
 def parse_duration(duration_string: str) -> datetime.timedelta | None:
     """
@@ -25,13 +25,13 @@ def parse_duration(duration_string: str) -> datetime.timedelta | None:
 class ModerationCog(commands.Cog, name="Modération"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.db_conn = bot.db_conn # Récupère la connexion depuis l'instance du bot
 
     async def _log_action(self, interaction: discord.Interaction, embed: discord.Embed):
         """Envoie un embed dans le salon de logs de modération configuré."""
-        cursor = self.db_conn.cursor()
-        cursor.execute("SELECT mod_log_channel_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,))
-        record = cursor.fetchone()
+        async with get_db_connection() as conn:
+            conn.row_factory = discord.sqlite3.Row
+            async with conn.execute("SELECT mod_log_channel_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
+                record = await cursor.fetchone()
         
         if record and record['mod_log_channel_id']:
             log_channel = self.bot.get_channel(record['mod_log_channel_id'])
@@ -42,9 +42,6 @@ class ModerationCog(commands.Cog, name="Modération"):
                     print(f"Permissions manquantes pour envoyer des logs dans le salon {log_channel.id} du serveur {interaction.guild.id}")
                 except discord.HTTPException as e:
                     print(f"Erreur HTTP lors de l'envoi des logs: {e}")
-
-    def cog_unload(self):
-        pass # La connexion est maintenant gérée par main.py
 
     @app_commands.command(name="clear", description="Supprime un nombre de messages dans le salon.")
     @app_commands.describe(nombre="Le nombre de messages à supprimer (entre 1 et 100).")
@@ -83,10 +80,10 @@ class ModerationCog(commands.Cog, name="Modération"):
             await interaction.response.send_message("❌ Je ne peux pas avertir ce membre car son rôle est supérieur ou égal au mien.", ephemeral=True)
             return
 
-        cursor = self.db_conn.cursor()
-        cursor.execute("INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)",
-                       (interaction.guild.id, membre.id, interaction.user.id, raison))
-        self.db_conn.commit()
+        async with get_db_connection() as conn:
+            await conn.execute("INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)",
+                               (interaction.guild.id, membre.id, interaction.user.id, raison))
+            await conn.commit()
 
         embed = discord.Embed(
             title="Nouvel Avertissement",
@@ -130,10 +127,11 @@ class ModerationCog(commands.Cog, name="Modération"):
                 await interaction.response.send_message(f"❌ Utilisateur `{utilisateur}` introuvable.", ephemeral=True)
                 return
 
-        cursor = self.db_conn.cursor()
-        cursor.execute("SELECT id, moderator_id, reason, timestamp FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC",
-                       (interaction.guild.id, target_user.id))
-        records = cursor.fetchall()
+        records = []
+        async with get_db_connection() as conn:
+            conn.row_factory = discord.sqlite3.Row
+            async with conn.execute("SELECT id, moderator_id, reason, timestamp FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC", (interaction.guild.id, target_user.id)) as cursor:
+                records = await cursor.fetchall()
 
         if not records:
             await interaction.response.send_message(f"✅ `{target_user.display_name}` n'a aucun avertissement sur ce serveur.", ephemeral=True)
@@ -159,21 +157,21 @@ class ModerationCog(commands.Cog, name="Modération"):
     @app_commands.describe(warn_id="L'ID de l'avertissement à supprimer (visible avec /warnings).")
     @app_commands.checks.has_permissions(manage_messages=True)
     async def delwarn(self, interaction: discord.Interaction, warn_id: int):
-        cursor = self.db_conn.cursor()
-
-        # Vérifier que l'avertissement existe et qu'il appartient bien à ce serveur
-        cursor.execute("SELECT user_id FROM warnings WHERE id = ? AND guild_id = ?", (warn_id, interaction.guild.id))
-        record = cursor.fetchone()
+        record = None
+        async with get_db_connection() as conn:
+            conn.row_factory = discord.sqlite3.Row
+            # Vérifier que l'avertissement existe et qu'il appartient bien à ce serveur
+            async with conn.execute("SELECT user_id FROM warnings WHERE id = ? AND guild_id = ?", (warn_id, interaction.guild.id)) as cursor:
+                record = await cursor.fetchone()
 
         if not record:
             await interaction.response.send_message(f"❌ Aucun avertissement avec l'ID `{warn_id}` n'a été trouvé sur ce serveur.", ephemeral=True)
             return
 
         user_id = record['user_id']
-
-        # Supprimer l'avertissement
-        cursor.execute("DELETE FROM warnings WHERE id = ?", (warn_id,))
-        self.db_conn.commit()
+        async with get_db_connection() as conn:
+            await conn.execute("DELETE FROM warnings WHERE id = ?", (warn_id,))
+            await conn.commit()
 
         # Essayer de retrouver l'utilisateur pour un message plus clair
         try:

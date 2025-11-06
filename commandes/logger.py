@@ -1,10 +1,10 @@
 import discord
-import sqlite3
 import io
 import asyncio
 from discord.ext import commands, tasks
 import os
 from discord import app_commands
+from db_manager import get_db_connection
 
 class LoggerCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -28,18 +28,17 @@ class LoggerCog(commands.Cog):
         if self.log_queue.empty():
             return
 
-        # Utiliser une nouvelle connexion pour cette tâche pour éviter les conflits
-        conn = sqlite3.connect("bot_database.db")
-        cursor = conn.cursor()
-        
-        # Traiter tous les éléments actuellement dans la file d'attente
-        logs_to_process = []
-        while not self.log_queue.empty():
-            logs_to_process.append(await self.log_queue.get())
+        async with get_db_connection() as conn:
+            # Traiter tous les éléments actuellement dans la file d'attente
+            logs_to_process = []
+            while not self.log_queue.empty():
+                try:
+                    logs_to_process.append(self.log_queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
 
-        cursor.executemany("INSERT INTO message_events (guild_id, channel_id, author_id, event_type, old_content, new_content) VALUES (?, ?, ?, ?, ?, ?)", logs_to_process)
-        conn.commit()
-        conn.close()
+            await conn.executemany("INSERT INTO message_events (guild_id, channel_id, author_id, event_type, old_content, new_content) VALUES (?, ?, ?, ?, ?, ?)", logs_to_process)
+            await conn.commit()
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):
@@ -64,43 +63,43 @@ class LoggerCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         
         guild = interaction.guild
-        cursor = self.db_conn.cursor()
-        cursor.execute("SELECT author_id, channel_id, event_type, old_content, new_content, timestamp FROM message_events WHERE guild_id = ? ORDER BY timestamp ASC", (guild.id,))
-        logs = cursor.fetchall()
+        logs = []
+        async with get_db_connection() as conn:
+            conn.row_factory = discord.sqlite3.Row
+            async with conn.execute("SELECT author_id, channel_id, event_type, old_content, new_content, timestamp FROM message_events WHERE guild_id = ? ORDER BY timestamp ASC", (guild.id,)) as cursor:
+                logs = await cursor.fetchall()
 
         if not logs:
             await interaction.followup.send("Aucun message supprimé ou modifié n'a été enregistré pour ce serveur.", ephemeral=True)
             return
 
         # Création d'un fichier de base de données temporaire
-        db_filename = f"logs-{guild.name.replace(' ', '_')}.db"
+        db_filename = f"logs-{guild.id}.db"
         
         try:
-            temp_conn = sqlite3.connect(db_filename)
-            temp_cursor = temp_conn.cursor()
-            temp_cursor.execute('''
-                CREATE TABLE event_logs (
-                    timestamp DATETIME,
-                    event_type TEXT,
-                    channel_name TEXT,
-                    author_name TEXT,
-                    old_content TEXT,
-                    new_content TEXT
-                )
-            ''')
+            async with aiosqlite.connect(db_filename) as temp_conn:
+                await temp_conn.execute('''
+                    CREATE TABLE IF NOT EXISTS event_logs (
+                        timestamp DATETIME,
+                        event_type TEXT,
+                        channel_name TEXT,
+                        author_name TEXT,
+                        old_content TEXT,
+                        new_content TEXT
+                    )
+                ''')
 
-            for author_id, channel_id, event_type, old_content, new_content, timestamp in logs:
-                author = guild.get_member(author_id) or await self.bot.fetch_user(author_id)
-                author_name = str(author) if author else f"Utilisateur inconnu (ID: {author_id})"
-                
-                channel = guild.get_channel(channel_id)
-                channel_name = f"#{channel.name}" if channel else f"Salon inconnu (ID: {channel_id})"
+                for log_entry in logs:
+                    author = guild.get_member(log_entry['author_id']) or f"Utilisateur inconnu (ID: {log_entry['author_id']})"
+                    author_name = str(author)
+                    
+                    channel = guild.get_channel(log_entry['channel_id'])
+                    channel_name = f"#{channel.name}" if channel else f"Salon inconnu (ID: {log_entry['channel_id']})"
 
-                temp_cursor.execute("INSERT INTO event_logs (timestamp, event_type, channel_name, author_name, old_content, new_content) VALUES (?, ?, ?, ?, ?, ?)",
-                                   (timestamp, event_type, channel_name, author_name, old_content, new_content))
+                    await temp_conn.execute("INSERT INTO event_logs (timestamp, event_type, channel_name, author_name, old_content, new_content) VALUES (?, ?, ?, ?, ?, ?)",
+                                       (log_entry['timestamp'], log_entry['event_type'], channel_name, author_name, log_entry['old_content'], log_entry['new_content']))
 
-            temp_conn.commit()
-            temp_conn.close()
+                await temp_conn.commit()
 
             # Envoi du fichier .db
             await interaction.followup.send(
@@ -108,7 +107,6 @@ class LoggerCog(commands.Cog):
                 file=discord.File(db_filename),
                 ephemeral=True
             )
-
         finally:
             # Nettoyage : suppression du fichier temporaire après envoi
             if os.path.exists(db_filename):
