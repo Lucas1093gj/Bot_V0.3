@@ -477,6 +477,44 @@ class MusicCog(commands.Cog):
         """Recherche une ou plusieurs chansons et les ajoute à la file d'attente. Renvoie le nombre de pistes ajoutées."""
         player: wavelink.Player = interaction.guild.voice_client
 
+        # --- Traitement pour les recherches normales (YouTube, etc.) ---
+        # Si ce n'est PAS un lien spotify, on traite ici et on sort.
+        if not (self.sp and "open.spotify.com" in query):
+            try:
+                # On force la recherche sur YouTube Music si ce n'est pas déjà un lien
+                if not query.startswith(('http', 'ytsearch:', 'scsearch:')):
+                    query = f"ytmsearch:{query}"
+
+                tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
+            except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
+                print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
+                await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
+                return 0
+
+            if not tracks:
+                await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query}`.", ephemeral=True)
+                return 0
+
+            added_count = 0
+            if isinstance(tracks, wavelink.Playlist):
+                added_count = len(tracks.tracks)
+                for track in tracks.tracks:
+                    track.extras = {"requester_id": interaction.user.id}
+                player.queue.put(tracks.tracks)
+            else:
+                track = tracks[0]
+                track.extras = {"requester_id": interaction.user.id}
+                added_count = 1
+                if add_to_top:
+                    player.queue.put_at_front(track)
+                else:
+                    await player.queue.put_wait(track)
+            
+            if not player.playing:
+                await player.play(player.queue.get())
+
+            return added_count
+
         # --- Traitement spécial pour Spotify ---
         if self.sp and "open.spotify.com" in query:
             try:
@@ -485,77 +523,42 @@ class MusicCog(commands.Cog):
                     track_info = self.sp.track(query)
                     artist_name = track_info['artists'][0]['name']
                     track_name = track_info['name']
-                    search_query = f"ytsearch:{artist_name} - {track_name}"
-                    tracks = await wavelink.Playable.search(search_query)
-                    if not tracks:
-                        await interaction.followup.send(f"❌ Impossible de trouver une correspondance YouTube pour la piste Spotify `{track_name}`.", ephemeral=True)
-                        return 0
+                    # On transforme la requête en une recherche YouTube et on la traite comme une recherche normale
+                    query = f"ytsearch:{artist_name} - {track_name}"
+                    # On ne met pas de return ici, on laisse la suite du code gérer la recherche
+                
+                elif "playlist" in query or "album" in query:
+                    is_album = "album" in query
+                    item_type = "l'album" if is_album else "la playlist"
                     
-                    track_to_add = tracks[0]
-                    track_to_add.extras = {"requester_id": interaction.user.id}
-                    
-                    if add_to_top:
-                        player.queue.put_at_front(track_to_add)
+                    if is_album:
+                        results = self.sp.album_tracks(query)
+                        items = results['items']
                     else:
-                        await player.queue.put_wait(track_to_add)
+                        results = self.sp.playlist_items(query)
+                        items = [item['track'] for item in results['items'] if item.get('track')]
+
+                    tracks_to_add = []
+                    for track in items:
+                        if not track: continue
+                        artist_name = track['artists'][0]['name']
+                        track_name = track['name']
+                        tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
                     
-                    if not player.playing:
-                        await player.play(player.queue.get())
-                    return 1 # On retourne 1 pour indiquer qu'une piste a été ajoutée et arrêter le traitement.
+                    asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
+                    await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis {item_type} Spotify en cours...", ephemeral=True)
+                    return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès et arrête le traitement ici.
 
             except spotipy.SpotifyException as e:
                 print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
                 await interaction.followup.send("❌ Une erreur est survenue avec l'API Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
                 return 0
-            except Exception as e: # noqa
+            except Exception as e:
                 print(f"[Spotify Error] Erreur inattendue lors du traitement du lien Spotify '{query}': {e}")
                 await interaction.followup.send("❌ Une erreur inattendue est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
                 return 0
-            return 0 # Si c'est un lien Spotify mais qu'il n'a pas été traité (ex: album, artiste), on s'arrête ici.
-
-        # --- Traitement pour les recherches normales (YouTube, etc.) ---
-        try:
-            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien
-            if not query.startswith(('http', 'ytsearch:', 'scsearch:')):
-                query = f"ytmsearch:{query}"
-
-            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
-        except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
-            # Log the detailed error for debugging
-            print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
-            await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
-            return 0
-
-        if not tracks:
-            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query}`.", ephemeral=True)
-            return 0
-
-        added_count = 0
-        if isinstance(tracks, wavelink.Playlist):
-            # Si la recherche renvoie une playlist YouTube
-            added_count = len(tracks.tracks)
-            for track in tracks.tracks:
-                track.extras = {"requester_id": interaction.user.id}
-            if add_to_top:
-                player.queue.put_at_front(tracks.tracks)
-                # On doit inverser pour que la première chanson de la playlist soit jouée en premier
-                player.queue.put_at_front(reversed(tracks.tracks))
-            else:
-                player.queue.put(tracks.tracks)
-        else:
-            # Si la recherche renvoie une seule piste
-            track = tracks[0]
-            track.extras = {"requester_id": interaction.user.id}
-            added_count = 1
-            if add_to_top:
-                player.queue.put_at_front(track)
-            else:
-                await player.queue.put_wait(track)
-        
-        if not player.playing:
-            await player.play(player.queue.get())
-
-        return added_count
+        # Si on arrive ici, c'est qu'on a traité un lien de piste Spotify. On relance la fonction avec la nouvelle requête de recherche.
+        return await self._add_song_to_queue(interaction, query, add_to_top)
 
     async def _add_multiple_tracks(self, interaction: discord.Interaction, queries: list[str], add_to_top: bool):
         """Ajoute une liste de pistes à la file d'attente, en arrière-plan."""
