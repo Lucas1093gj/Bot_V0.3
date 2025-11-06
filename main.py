@@ -44,9 +44,11 @@ bot.critical_operation_lock = asyncio.Lock()
 LAVALINK_NODES = [
     # Utilisation d'adresses IP directes pour contourner les problèmes de DNS sur le Raspberry Pi.
     # Ces serveurs sont compatibles v4.
-    # On tente un autre serveur v4 accessible par IP.
-    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "AneFaiz-EU"},
-    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US"}, # Gardé en secours
+    {"host": "lava.link", "port": 80, "password": "youshallnotpass", "secure": False, "region": "LavaLink-EU"},
+    {"host": "lavalink.devamop.in", "port": 80, "password": "DevamOP", "secure": False, "region": "DevamOP-IN"},
+    {"host": "me.horizxon.studio", "port": 80, "password": "horizxon.studio", "secure": False, "region": "Horizxon-US"},
+    # Gardons un nœud par IP en secours
+    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "AneFaiz-EU- secours"},
 ]
 
 @bot.event
