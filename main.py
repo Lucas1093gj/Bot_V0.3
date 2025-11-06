@@ -42,11 +42,11 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # Liste de nœuds publics v4 mise à jour. La fiabilité peut varier.
-    {"host": "lavalink.jirayu.net", "port": 13592, "password": "youshallnotpass", "secure": False},
-    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False},
-    {"host": "lavahatry4.techbyte.host", "port": 3000, "password": "NAIGLAVA-dash.techbyte.host", "secure": False},
-    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False},
+    # Nœuds plus fiables fournis par des services dédiés.
+    # Source: https://lava-link.com/nodes
+    {"host": "us1.lava-link.com", "port": 80, "password": "LAVA", "secure": False, "region": "us"},
+    {"host": "eu.lava-link.com", "port": 80, "password": "LAVA", "secure": False, "region": "eu"},
+    {"host": "as.lava-link.com", "port": 80, "password": "LAVA", "secure": False, "region": "asia"},
 ]
 
 @bot.event
@@ -57,6 +57,13 @@ async def on_wavelink_inactive_node(node: wavelink.Node):
         creator = await bot.fetch_user(int(CREATOR_ID))
         if creator:
             await creator.send(f"⚠️ **Alerte Bot** ⚠️\nLe nœud Lavalink `{node.identifier}` est déconnecté ou ne répond plus.")
+
+@bot.event
+async def on_wavelink_node_ready(payload: wavelink.NodeReadyEventPayload):
+    """Événement déclenché quand un nœud Lavalink est prêt."""
+    node = payload.node
+    print(f"[Lavalink - INFO] Le nœud '{node.identifier}' est prêt. Session ID: {payload.session_id}")
+
 
 @bot.event
 async def setup_hook():
@@ -70,7 +77,8 @@ async def setup_hook():
     for config in LAVALINK_NODES:
         nodes.append(wavelink.Node(
             uri=f"{'https' if config['secure'] else 'http'}://{config['host']}:{config['port']}",
-            password=config['password']
+            password=config['password'],
+            identifier=config.get('region', config['host']) # Utilise la région comme identifiant pour plus de clarté
         ))
     await wavelink.Pool.connect(nodes=nodes, client=bot, cache_capacity=100)
 
@@ -124,8 +132,8 @@ async def close():
     if hasattr(bot, 'db_conn') and bot.db_conn:
         bot.db_conn.close()
         print("[Shutdown] Connexion à la base de données fermée.")
-    # La déconnexion des noeuds est gérée automatiquement par wavelink.Pool
-    await wavelink.Pool.disconnect()
+    # Fermeture propre de la connexion aux noeuds Lavalink
+    await wavelink.Pool.close()
     print("[Shutdown] Connexions aux noeuds Lavalink et à la DB fermées.")
 
 print("Le bot démarre... 123")
