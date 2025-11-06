@@ -42,9 +42,10 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # Liste de nœuds publics v4. La fiabilité peut varier, mais ils sont largement utilisés.
-    {"host": "lava.link", "port": 80, "password": "LAVA", "secure": False, "region": "eu"},
-    {"host": "lavalink.oops.wtf", "port": 2000, "password": "www.oops.wtf", "secure": False, "region": "us"},
+    # Utilisation d'adresses IP directes pour contourner les problèmes de DNS sur le Raspberry Pi.
+    # Ces serveurs sont compatibles v4.
+    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US"},
+    {"host": "173.249.0.115", "port": 13592, "password": "https://camming.xyz", "secure": False, "region": "YumiTeam-EU"},
 ]
 
 @bot.event
