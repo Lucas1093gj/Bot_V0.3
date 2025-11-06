@@ -525,14 +525,12 @@ class MusicCog(commands.Cog):
                     await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis la playlist Spotify en cours...", ephemeral=True)
                     return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès
 
-            except Exception as e:
             except spotipy.SpotifyException as e:
                 print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
                 await interaction.followup.send("❌ Une erreur est survenue avec l'API Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
                 return 0
             except Exception as e: # noqa
-                print(f"[Spotify Error] Erreur lors du traitement du lien Spotify '{query}': {e}")
-                await interaction.followup.send("❌ Une erreur est survenue lors de la récupération des informations de Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
+                print(f"[Spotify Error] Erreur inattendue lors du traitement du lien Spotify '{query}': {e}")
                 await interaction.followup.send("❌ Une erreur inattendue est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
                 return 0
 
