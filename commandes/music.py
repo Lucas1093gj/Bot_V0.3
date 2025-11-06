@@ -363,6 +363,17 @@ class MusicCog(commands.Cog):
         except ValueError:
             return None
 
+    def _clean_search_query(self, artist: str, title: str) -> str:
+        """Nettoie en profondeur le nom de l'artiste et le titre pour une recherche YouTube optimale."""
+        # Supprimer les parenthèses, crochets et leur contenu
+        title = re.sub(r'[\(\[].*?[\)\]]', '', title)
+        # Supprimer les mots-clés courants et "feat."
+        title = re.sub(r'(?i)\s*(official|video|audio|lyric|feat|ft)\.?\s*', ' ', title)
+        # Supprimer la plupart des caractères spéciaux, en gardant les espaces
+        artist = re.sub(r'[^\w\s-]', '', artist)
+        title = re.sub(r'[^\w\s-]', '', title)
+        return f"ytsearch:{artist.strip()} - {title.strip()}"
+
     @tasks.loop(seconds=10.0)
     async def update_now_playing_loop(self):
         """Met à jour tous les messages 'En cours de lecture' actifs."""
@@ -486,13 +497,9 @@ class MusicCog(commands.Cog):
             try:
                 if "track" in query:
                     track_info = self.sp.track(query)
-                    # On nettoie le nom de l'artiste et du titre pour une meilleure recherche YouTube
-                    # On prend le premier artiste et on retire les informations entre parenthèses du titre
-                    artist_name = track_info['artists'][0]['name'].strip()
-                    track_name = re.sub(r'\s*\(.*\)', '', track_info['name']).strip()
-
-                    # On transforme la requête en une recherche YouTube et on la traite comme une recherche normale
-                    query = f"ytsearch:{artist_name} - {track_name}"
+                    artist_name = track_info['artists'][0]['name']
+                    track_name = track_info['name']
+                    query = self._clean_search_query(artist_name, track_name)
                     # Pas de return ici, on laisse le code continuer pour traiter la nouvelle query
                     print(f"[Spotify] Converted track link to YouTube search: '{query}'") # Log pour le débogage
                 
@@ -511,10 +518,9 @@ class MusicCog(commands.Cog):
                     tracks_to_add = []
                     for track in items:
                         if not track: continue
-                        # Même nettoyage que pour une piste unique
-                        artist_name = track['artists'][0]['name'].strip()
-                        track_name = re.sub(r'\s*\(.*\)', '', track['name']).strip()
-                        tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
+                        artist_name = track['artists'][0]['name']
+                        track_name = track['name']
+                        tracks_to_add.append(self._clean_search_query(artist_name, track_name))
                     
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
                     # On envoie un message de confirmation et on arrête la fonction ici
