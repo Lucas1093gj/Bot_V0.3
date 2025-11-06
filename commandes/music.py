@@ -467,14 +467,15 @@ class MusicCog(commands.Cog):
         player: wavelink.Player = interaction.guild.voice_client
         try:
             tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
-        except wavelink.LavalinkException as e:
+        except Exception as e:
             # Log the detailed error for debugging
             print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
-            # Send a user-friendly message
-            await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
-            return 0
-        except Exception as e:
-            await interaction.followup.send(f"❌ Une erreur inattendue est survenue lors de la recherche : {e}", ephemeral=True)
+            # Check if it's the specific Lavalink error we want to handle gracefully
+            if "Failed to Load Tracks" in str(e):
+                await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
+            else:
+                # Handle other unexpected errors
+                await interaction.followup.send(f"❌ Une erreur inattendue est survenue lors de la recherche : {e}", ephemeral=True)
             return 0
 
         if not tracks:
