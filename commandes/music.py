@@ -501,29 +501,7 @@ class MusicCog(commands.Cog):
                     
                     if not player.playing:
                         await player.play(player.queue.get())
-                    return 1
-
-                elif "playlist" in query or "album" in query:
-                    # C'est une playlist ou un album, on traite en arrière-plan
-                    is_album = "album" in query
-                    playlist_info = self.sp.album_tracks(query) if is_album else self.sp.playlist_items(query)
-                    tracks_to_add = []
-                    items = playlist_info['items']
-                    for item in items:
-                        track = item if is_album else item.get('track')
-                        if not track: continue
-                        artist_name = track['artists'][0]['name']
-                        track_name = track['name']
-                        # On ne fait pas la recherche ici pour ne pas bloquer, on ajoute juste les noms
-                        # On prépare une liste de recherches YouTube
-                        tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
-                    
-                    # On lance l'ajout en arrière-plan pour ne pas faire attendre l'utilisateur
-                    asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
-                    # Le message de confirmation est maintenant envoyé depuis la tâche elle-même pour éviter la confusion.
-                    item_type = "l'album" if is_album else "la playlist"
-                    await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis {item_type} Spotify en cours...", ephemeral=True)
-                    return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès et arrête le traitement ici.
+                    return 1 # On retourne 1 pour indiquer qu'une piste a été ajoutée et arrêter le traitement.
 
             except spotipy.SpotifyException as e:
                 print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
