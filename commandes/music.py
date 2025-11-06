@@ -269,15 +269,21 @@ class MusicCog(commands.Cog):
             except (discord.HTTPException, AttributeError):
                 pass
 
-        # S'il y a une prochaine musique dans la file, on_wavelink_track_start sera appelé automatiquement.
-        # Sinon, la file est vide.
-        # On vérifie si la musique s'est terminée naturellement et que la file est vide.
-        if payload.reason == "FINISHED" and player.queue.is_empty:
-            if player.home:
-                await player.home.send("✅ File d'attente terminée.")
-            # On attend un court instant pour que le message soit visible avant de déconnecter.
-            await asyncio.sleep(2)
-            await player.disconnect()
+        # Si la file d'attente n'est pas vide, on lance la prochaine musique.
+        # Wavelink v3+ gère cela automatiquement avec la Queue, mais pour être plus robuste,
+        # on peut l'expliciter.
+        if not player.queue.is_empty:
+            # La méthode play() va automatiquement prendre la prochaine chanson de la file d'attente
+            # si aucune piste n'est fournie.
+            next_track = player.queue.get()
+            await player.play(next_track)
+        # Si la file est vide, on peut déconnecter le bot après un délai.
+        elif payload.reason == "FINISHED":
+             if player.home:
+                 await player.home.send("✅ File d'attente terminée.")
+             # On attend un court instant pour que le message soit visible avant de déconnecter.
+             await asyncio.sleep(10) # Un délai un peu plus long pour éviter les déconnexions trop rapides
+             await player.disconnect()
 
     @commands.Cog.listener()
     async def on_wavelink_player_destroy(self, player: wavelink.Player):
