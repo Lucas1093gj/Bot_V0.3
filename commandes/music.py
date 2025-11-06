@@ -583,19 +583,27 @@ class MusicCog(commands.Cog):
         """Ajoute une liste de pistes à la file d'attente, en arrière-plan."""
         player: wavelink.Player = interaction.guild.voice_client
         added_count = 0
+        failed_tracks = []
         
         # Pour ajouter en haut, on doit inverser la liste des requêtes
         track_list_for_queue = []
 
         for query in queries:
             try:
+                # On ajoute une petite pause pour ne pas surcharger Lavalink
+                await asyncio.sleep(0.5)
                 tracks = await wavelink.Playable.search(query)
                 if tracks:
                     track = tracks[0]
                     track.extras = {"requester_id": interaction.user.id}
                     track_list_for_queue.append(track)
                     added_count += 1
-            except Exception: # noqa
+                else:
+                    # La recherche n'a rien donné, on note le nom pour le rapport
+                    failed_tracks.append(query.replace("ytsearch:", "").strip())
+            except Exception as e:
+                print(f"[Music Search Error] Failed to process query '{query}': {e}")
+                failed_tracks.append(query.replace("ytsearch:", "").strip())
                 continue # On ignore les pistes qui ne peuvent pas être trouvées
 
         if add_to_top:
@@ -607,7 +615,13 @@ class MusicCog(commands.Cog):
             await player.play(player.queue.get())
 
         # Envoyer un message de confirmation final
-        await interaction.channel.send(f"✅ **{added_count} / {len(queries)}** musiques de la playlist Spotify ont été ajoutées à la file d'attente.")
+        final_message = f"✅ **{added_count} / {len(queries)}** musiques de la playlist Spotify ont été ajoutées à la file d'attente."
+        if failed_tracks:
+            failed_list = "\n".join([f"- `{name}`" for name in failed_tracks[:5]]) # Affiche les 5 premiers échecs
+            final_message += f"\n\n❌ Impossible de trouver une correspondance pour **{len(failed_tracks)}** musique(s), dont :\n{failed_list}"
+            if len(failed_tracks) > 5:
+                final_message += f"\n...et {len(failed_tracks) - 5} autres."
+        await interaction.channel.send(final_message)
 
     @music_group.command(name="queue", description="Affiche la file d'attente actuelle")
     async def queue(self, interaction: discord.Interaction):
