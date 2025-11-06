@@ -42,15 +42,10 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # --- Liste de nœuds Lavalink v4 publics, confirmés comme fonctionnels depuis le Raspberry Pi ---
-    # Wavelink essaiera ces nœuds dans l'ordre. On utilise les adresses IP directes pour une fiabilité maximale.
-    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-US-v4"},
-    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "TriniumHost-EU"},
-    {"host": "107.150.58.122", "port": 4006, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "Millodj-IP"},
-    # En secours, un nœud avec un nom de domaine qui a des chances de fonctionner
-    {"host": "audio.chippy.info", "port": 24597, "password": "youshallnotpass", "secure": False, "region": "Chippy-Audio"},
-    # Le nœud suivant est en v3, il est moins prioritaire mais peut servir de dernier recours.
-    {"host": "140.238.179.182", "port": 2334, "password": "free", "secure": False, "region": "TriniumHost-US-v3"},
+    # --- Liste de nœuds Lavalink v4 optimisée pour contourner les pare-feu ---
+    # On utilise uniquement des serveurs sur le port 80, qui est le port standard du web et rarement bloqué.
+    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-EU-Port80"},
+    {"host": "lavalinkv4.serenetia.com", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "Serenetia-EU-Port80"},
 ]
 
 @bot.event
