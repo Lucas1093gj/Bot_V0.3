@@ -594,7 +594,6 @@ class MusicCog(commands.Cog):
                     track.extras = {"requester_id": interaction.user.id}
                     track_list_for_queue.append(track)
                     added_count += 1
-            except Exception:
             except Exception: # noqa
                 continue # On ignore les pistes qui ne peuvent pas être trouvées
 
