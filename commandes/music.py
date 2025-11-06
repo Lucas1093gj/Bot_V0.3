@@ -494,48 +494,12 @@ class MusicCog(commands.Cog):
 
         # --- Traitement spécial pour Spotify ---
         if self.sp and "open.spotify.com" in query:
-            try:
-                if "track" in query:
-                    track_info = self.sp.track(query)
-                    artist_name = track_info['artists'][0]['name']
-                    track_name = track_info['name']
-                    query = self._clean_search_query(artist_name, track_name)
-                    # Pas de return ici, on laisse le code continuer pour traiter la nouvelle query
-                    print(f"[Spotify] Converted track link to YouTube search: '{query}'") # Log pour le débogage
-                
-                elif "playlist" in query or "album" in query:
-                    is_album = "album" in query
-                    item_type = "l'album" if is_album else "la playlist"
-                    
-                    # On informe l'utilisateur que l'ajout est en cours
-                    if is_album:
-                        results = self.sp.album_tracks(query)
-                        items = results['items']
-                    else:
-                        results = self.sp.playlist_items(query)
-                        items = [item['track'] for item in results['items'] if item.get('track')]
-
-                    tracks_to_add = []
-                    for track in items:
-                        if not track: continue
-                        artist_name = track['artists'][0]['name']
-                        track_name = track['name']
-                        tracks_to_add.append(self._clean_search_query(artist_name, track_name))
-                    
-                    asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
-                    # On envoie un message de confirmation et on arrête la fonction ici
-                    # car _add_multiple_tracks s'occupe du reste en arrière-plan.
-                    await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis {item_type} Spotify en cours...", ephemeral=True)
-                    return len(tracks_to_add)
-
-            except spotipy.SpotifyException as e:
-                print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
-                await interaction.followup.send("❌ Une erreur est survenue avec l'API Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
-                return 0
-            except Exception as e:
-                print(f"[Spotify Error] Erreur inattendue lors du traitement du lien Spotify '{query}': {e}")
-                await interaction.followup.send("❌ Une erreur inattendue est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
-                return 0
+            # On désactive temporairement la fonctionnalité Spotify pour stabiliser le bot.
+            await interaction.followup.send(
+                "⚠️ Les liens Spotify sont temporairement désactivés pour maintenance. Veuillez utiliser des termes de recherche YouTube (ex: nom de l'artiste - titre de la chanson).",
+                ephemeral=True
+            )
+            return 0 # On arrête le traitement et on indique qu'aucune piste n'a été ajoutée.
 
         # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
