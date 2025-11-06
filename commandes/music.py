@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord.ext import tasks
 from discord import app_commands
 import re
+import spotipy
 from datetime import timedelta
 
 # --- Constantes ---
@@ -200,6 +201,16 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         # Démarrer la boucle de mise à jour de l'affichage
+        try:
+            spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
+            spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+            if spotify_client_id and spotify_client_secret:
+                self.sp = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials(client_id=spotify_client_id, client_secret=spotify_client_secret))
+            else:
+                self.sp = None
+        except Exception as e:
+            print(f"[Spotify Init Error] Could not initialize Spotipy: {e}")
+            self.sp = None
         self.update_now_playing_loop.start()
 
     def cog_unload(self):
@@ -464,10 +475,35 @@ class MusicCog(commands.Cog):
 
     async def _add_song_to_queue(self, interaction: discord.Interaction, query: str, add_to_top: bool = False) -> int:
         """Recherche une ou plusieurs chansons et les ajoute à la file d'attente."""
+        # Si c'est un lien Spotify, on le traite différemment
+        if self.sp and ("open.spotify.com/track" in query or "open.spotify.com/playlist" in query):
+            try:
+                if "track" in query:
+                    track_info = self.sp.track(query)
+                    artist_name = track_info['artists'][0]['name']
+                    track_name = track_info['name']
+                    # On reformate la requête pour une recherche YouTube plus efficace
+                    query = f"ytsearch:{artist_name} - {track_name}"
+                elif "playlist" in query:
+                    # Pour les playlists, on laisse wavelink tenter de les gérer, car il peut avoir un plugin pour ça.
+                    # Si ça échoue, l'erreur sera attrapée ci-dessous.
+                    pass
+            except spotipy.exceptions.SpotifyException as e:
+                await interaction.followup.send(f"❌ Erreur avec l'API Spotify : {e}", ephemeral=True)
+                return 0
+            except Exception as e:
+                print(f"[Spotify Error] Erreur lors du traitement du lien Spotify '{query}': {e}")
+                await interaction.followup.send("❌ Une erreur est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
+                return 0
+
         player: wavelink.Player = interaction.guild.voice_client
         try:
+            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien
+            if not query.startswith(('http', 'ytsearch:', 'scsearch:')):
+                query = f"ytmsearch:{query}"
+
             tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
-        except Exception as e:
+        except wavelink.LavalinkException as e:
             # Log the detailed error for debugging
             print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
             # Check if it's the specific Lavalink error we want to handle gracefully
@@ -475,7 +511,7 @@ class MusicCog(commands.Cog):
                 await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
             else:
                 # Handle other unexpected errors
-                await interaction.followup.send(f"❌ Une erreur inattendue est survenue lors de la recherche : {e}", ephemeral=True)
+                await interaction.followup.send(f"❌ Une erreur Lavalink est survenue lors de la recherche : {e}", ephemeral=True)
             return 0
 
         if not tracks:
