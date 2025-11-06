@@ -475,6 +475,197 @@ class MusicCog(commands.Cog):
 
     async def _add_song_to_queue(self, interaction: discord.Interaction, query: str, add_to_top: bool = False) -> int:
         """Recherche une ou plusieurs chansons et les ajoute à la file d'attente."""
+        player: wavelink.Player = interaction.guild.voice_client
+
+        # --- Traitement spécial pour Spotify ---
+        if self.sp and "open.spotify.com" in query:
+            try:
+                if "track" in query:
+                    track_info = self.sp.track(query)
+                    artist_name = track_info['artists'][0]['name']
+                    track_name = track_info['name']
+                    search_query = f"ytsearch:{artist_name} - {track_name}"
+                    tracks = await wavelink.Playable.search(search_query)
+                    if not tracks:
+                        await interaction.followup.send(f"❌ Impossible de trouver une correspondance YouTube pour la piste Spotify `{track_name}`.", ephemeral=True)
+                        return 0
+                    
+                    track_to_add = tracks[0]
+                    track_to_add.extras = {"requester_id": interaction.user.id}
+                    
+                    if add_to_top:
+                        player.queue.put_at_front(track_to_add)
+                    else:
+                        await player.queue.put_wait(track_to_add)
+                    
+                    if not player.playing:
+                        await player.play(player.queue.get())
+                    return 1
+
+                elif "playlist" in query:
+                    playlist_info = self.sp.playlist_items(query)
+                    tracks_to_add = []
+                    for item in playlist_info['items']:
+                        track = item['track']
+                        if not track: continue
+                        artist_name = track['artists'][0]['name']
+                        track_name = track['name']
+                        # On ne fait pas la recherche ici pour ne pas bloquer, on ajoute juste les noms
+                        tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
+                    
+                    # On lance l'ajout en arrière-plan pour ne pas faire attendre l'utilisateur
+                    asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
+                    await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis la playlist Spotify en cours...", ephemeral=True)
+                    return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès
+
+            except Exception as e:
+                print(f"[Spotify Error] Erreur lors du traitement du lien Spotify '{query}': {e}")
+                await interaction.followup.send("❌ Une erreur est survenue lors de la récupération des informations de Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
+                return 0
+
+        # --- Traitement pour les recherches normales (YouTube, etc.) ---
+        try:
+            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien
+            if not query.startswith(('http', 'ytsearch:', 'scsearch:')):
+                query = f"ytmsearch:{query}"
+
+            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
+        except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
+            # Log the detailed error for debugging
+            print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
+            await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
+            return 0
+
+        if not tracks:
+            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query}`.", ephemeral=True)
+            return 0
+
+        added_count = 0
+        if isinstance(tracks, wavelink.Playlist):
+            added_count = len(tracks.tracks)
+            for track in tracks.tracks:
+                track.extras = {"requester_id": interaction.user.id}
+            if add_to_top:
+                player.queue.put_at_front(tracks.tracks)
+            else:
+                player.queue.put(tracks.tracks)
+        else:
+            track = tracks[0]
+            track.extras = {"requester_id": interaction.user.id}
+            added_count = 1
+            if add_to_top:
+                player.queue.put_at_front(track)
+            else:
+                await player.queue.put_wait(track)
+        
+        if not player.playing:
+            await player.play(player.queue.get())
+
+        return added_count
+
+    async def _add_multiple_tracks(self, interaction: discord.Interaction, queries: list[str], add_to_top: bool):
+        """Ajoute une liste de pistes à la file d'attente, en arrière-plan."""
+        player: wavelink.Player = interaction.guild.voice_client
+        added_count = 0
+        
+        # Pour ajouter en haut, on doit inverser la liste des requêtes
+        track_list_for_queue = []
+
+        for query in queries:
+            try:
+                tracks = await wavelink.Playable.search(query)
+                if tracks:
+                    track = tracks[0]
+                    track.extras = {"requester_id": interaction.user.id}
+                    track_list_for_queue.append(track)
+                    added_count += 1
+            except Exception:
+                continue # On ignore les pistes qui ne peuvent pas être trouvées
+
+        if add_to_top:
+            player.queue.put_at_front(reversed(track_list_for_queue))
+        else:
+            player.queue.put(track_list_for_queue)
+
+        if not player.playing and not player.queue.is_empty:
+            await player.play(player.queue.get())
+
+        # Envoyer un message de confirmation final
+        await interaction.channel.send(f"✅ **{added_count} / {len(queries)}** musiques de la playlist Spotify ont été ajoutées à la file d'attente.")
+
+    @music_group.command(name="queue", description="Affiche la file d'attente actuelle")
+    async def queue(self, interaction: discord.Interaction):
+        player: wavelink.Player = interaction.guild.voice_client # noqa
+        if not player or player.queue.is_empty:
+            await interaction.response.send_message("🎶 La file d'attente est vide.", ephemeral=True)
+            return
+
+        embed = discord.Embed(title="🎶 File d'attente", color=discord.Color.blue())
+        description = []
+        total_length = 0
+        displayed_count = 0
+
+        for i, track in enumerate(player.queue):
+            line = f"`{i+1}.` {track.title}\n"
+            if displayed_count < 10 and total_length + len(line) < 4000:
+                description.append(line)
+                total_length += len(line)
+                displayed_count += 1
+            else:
+                break
+
+        embed.description = "".join(description)
+        if len(player.queue) > displayed_count:
+            embed.set_footer(text=f"et {len(player.queue) - displayed_count} autre(s) morceau(x).")
+
+        await interaction.response.send_message(embed=embed)
+
+    @music_group.command(name="clear", description="Vide la file d'attente")
+    async def clear(self, interaction: discord.Interaction): # noqa
+        player: wavelink.Player = interaction.guild.voice_client
+        if not player or player.queue.is_empty:
+            await interaction.response.send_message("🎶 La file d'attente est déjà vide.", ephemeral=True)
+            return
+        player.queue.clear()
+        await interaction.response.send_message("🧹 La file d'attente a été vidée.")
+
+    @music_group.command(name="shuffle", description="Mélange la file d'attente.")
+    async def shuffle(self, interaction: discord.Interaction): # noqa
+        """Mélange la file d'attente actuelle du serveur."""
+        player: wavelink.Player = interaction.guild.voice_client
+        if not player or len(player.queue) < 2:
+            await interaction.response.send_message("❌ Il n'y a pas assez de musiques dans la file d'attente pour les mélanger.", ephemeral=True)
+            return
+        
+        player.queue.shuffle()
+        await interaction.response.send_message("🔀 La file d'attente a été mélangée !")
+
+    @music_group.command(name="loop", description="Répète la musique ou la file d'attente.")
+    @app_commands.describe(mode="Choisissez le mode de répétition.")
+    @app_commands.choices(mode=[
+        app_commands.Choice(name="Musique actuelle (track)", value="track"),
+        app_commands.Choice(name="File d'attente (queue)", value="queue"),
+        app_commands.Choice(name="Désactivé (off)", value="off"),
+    ])
+    async def loop(self, interaction: discord.Interaction, mode: app_commands.Choice[str]):
+        player: wavelink.Player = interaction.guild.voice_client
+        if not player:
+            return await interaction.response.send_message("❌ Le bot n'est pas connecté.", ephemeral=True)
+
+        if mode.value == "off":
+            player.queue.mode = wavelink.QueueMode.normal
+            await interaction.response.send_message("🔁 Répétition désactivée.")
+        elif mode.value == "track":
+            player.queue.mode = wavelink.QueueMode.loop # noqa
+            await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
+        elif mode.value == "queue":
+            player.queue.mode = wavelink.QueueMode.loop_all # noqa
+            await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
+
+
+async def setup(bot: commands.Bot, **kwargs):
+    await bot.add_cog(MusicCog(bot))
+        """Recherche une ou plusieurs chansons et les ajoute à la file d'attente."""
         # Si c'est un lien Spotify, on le traite différemment
         if self.sp and ("open.spotify.com/track" in query or "open.spotify.com/playlist" in query):
             try:
