@@ -530,6 +530,7 @@ class MusicCog(commands.Cog):
                 print(f"[Spotify Error] Erreur inattendue lors du traitement du lien Spotify '{query}': {e}")
                 await interaction.followup.send("❌ Une erreur inattendue est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
                 return 0
+            return 0 # Si c'est un lien Spotify mais qu'il n'a pas été traité (ex: album, artiste), on s'arrête ici.
 
         # --- Traitement pour les recherches normales (YouTube, etc.) ---
         try:
