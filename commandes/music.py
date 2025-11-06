@@ -489,7 +489,7 @@ class MusicCog(commands.Cog):
                     artist_name = track_info['artists'][0]['name']
                     track_name = track_info['name']
                     # On transforme la requête en une recherche YouTube et on la traite comme une recherche normale
-                    query = f"ytmsearch:{artist_name} - {track_name}"
+                    query = f"scsearch:{artist_name} - {track_name}"
                 
                 elif "playlist" in query or "album" in query:
                     is_album = "album" in query
@@ -507,7 +507,7 @@ class MusicCog(commands.Cog):
                         if not track: continue
                         artist_name = track['artists'][0]['name']
                         track_name = track['name']
-                        tracks_to_add.append(f"ytmsearch:{artist_name} - {track_name}")
+                        tracks_to_add.append(f"scsearch:{artist_name} - {track_name}")
                     
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
                     await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis {item_type} Spotify en cours...", ephemeral=True)
@@ -524,18 +524,18 @@ class MusicCog(commands.Cog):
 
         # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
-            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien ou une recherche formatée
+            # On force la recherche sur SoundCloud si ce n'est pas déjà un lien ou une recherche formatée
             if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
-                query = f"ytmsearch:{query}"
+                query = f"scsearch:{query}"
 
-            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query, source=wavelink.TrackSource.YouTubeMusic)
+            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
         except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
             print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
             await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
             return 0
 
         if not tracks:
-            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query.replace('ytsearch:', '').replace('ytmsearch:', '')}`.", ephemeral=True)
+            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query.replace('scsearch:', '')}`.", ephemeral=True)
             return 0
 
         added_count = 0
@@ -571,7 +571,7 @@ class MusicCog(commands.Cog):
             try:
                 # On ajoute une petite pause pour ne pas surcharger Lavalink
                 await asyncio.sleep(0.2)
-                tracks = await wavelink.Playable.search(query, source=wavelink.TrackSource.YouTubeMusic)
+                tracks = await wavelink.Playable.search(query)
                 if tracks:
                     track = tracks[0]
                     track.extras = {"requester_id": interaction.user.id}
@@ -579,10 +579,10 @@ class MusicCog(commands.Cog):
                     added_count += 1
                 else:
                     # La recherche n'a rien donné, on note le nom pour le rapport
-                    failed_tracks.append(query.replace("ytmsearch:", "").strip())
+                    failed_tracks.append(query.replace("scsearch:", "").strip())
             except Exception as e:
                 print(f"[Music Search Error] Failed to process query '{query}': {e}")
-                failed_tracks.append(query.replace("ytmsearch:", "").strip())
+                failed_tracks.append(query.replace("scsearch:", "").strip())
                 continue # On ignore les pistes qui ne peuvent pas être trouvées
 
         if add_to_top:
