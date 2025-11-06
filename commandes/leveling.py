@@ -29,6 +29,7 @@ class LevelingCog(commands.Cog, name="Leveling"):
         # --- Logique de gain d'XP ---
         # Utilisation d'un contexte asynchrone pour gérer la connexion
         async with get_db_connection() as conn:
+            conn.row_factory = aiosqlite.Row
             cursor = await conn.cursor() # noqa
 
             # Récupérer l'utilisateur ou le créer s'il n'existe pas

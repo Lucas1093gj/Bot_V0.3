@@ -327,6 +327,7 @@ class ModLogChannelSelect(discord.ui.ChannelSelect):
     async def callback(self, interaction: discord.Interaction):
         channel_id = int(self.values[0].id) if self.values else None
         async with get_db_connection() as conn:
+            # Pas besoin de row_factory pour un simple INSERT/REPLACE
             await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (interaction.guild.id, channel_id))
             await conn.commit()
 
@@ -347,6 +348,7 @@ class TicketCategorySelect(discord.ui.ChannelSelect):
     async def callback(self, interaction: discord.Interaction):
         category_id = int(self.values[0].id) if self.values else None
         async with get_db_connection() as conn:
+            # Pas besoin de row_factory pour un simple INSERT/REPLACE
             await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, category_id))
             await conn.commit()
 
@@ -404,6 +406,7 @@ class PageButton(discord.ui.Button):
         elif view.current_page == 2:
             record = None
             async with get_db_connection() as conn:
+                conn.row_factory = aiosqlite.Row
                 async with conn.execute("SELECT mod_log_channel_id, ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
                     record = await cursor.fetchone()
 
@@ -520,6 +523,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         role = await guild.create_role(name=role_name, permissions=permissions, color=color, reason="DiscordMaker Setup", hoist=hoist) # noqa
                         # --- MARQUAGE DANS LA DB ---
                         async with get_db_connection() as conn:
+                            # Pas besoin de row_factory pour un simple INSERT
                             await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, role.id, 'role'))
                             await conn.commit()
                         created_roles[role_name] = role
@@ -559,6 +563,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         category = await guild.create_category(category_name, overwrites=cat_overwrites, reason="DiscordMaker Setup")
                         # --- MARQUAGE DANS LA DB ---
                         async with get_db_connection() as conn:
+                            # Pas besoin de row_factory pour un simple INSERT
                             await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, category.id, 'category'))
                             await conn.commit()
                         await asyncio.sleep(0.5)
@@ -579,12 +584,14 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                             new_channel = await guild.create_text_channel(channel_name, category=category, overwrites=chan_overwrites, reason="DiscordMaker Setup")
                             # --- MARQUAGE DANS LA DB ---
                             async with get_db_connection() as conn:
+                                # Pas besoin de row_factory pour un simple INSERT
                                 await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
                                 await conn.commit()
                             await asyncio.sleep(0.5)
                             # Logique intelligente : si on crée le salon de logs, on le configure automatiquement
                             if "logs-modération" in channel_name:
                                 async with get_db_connection() as conn:
+                                    # Pas besoin de row_factory pour un simple INSERT/REPLACE
                                     await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (guild.id, new_channel.id))
                                     await conn.commit()
                         except discord.Forbidden:
@@ -599,6 +606,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                             new_channel = await guild.create_voice_channel(channel_name, category=category, overwrites=voice_overwrites, reason="DiscordMaker Setup")
                             # --- MARQUAGE DANS LA DB ---
                             async with get_db_connection() as conn:
+                                # Pas besoin de row_factory pour un simple INSERT
                                 await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
                                 await conn.commit()
                             await asyncio.sleep(0.5)
@@ -902,6 +910,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     async def _cleanup_guild(self, guild: discord.Guild):
         """Nettoie UNIQUEMENT les rôles et salons créés par le bot, en se basant sur la DB."""
         async with get_db_connection() as conn:
+            conn.row_factory = aiosqlite.Row
             async with conn.execute("SELECT element_id, element_type FROM created_elements WHERE guild_id = ?", (guild.id,)) as cursor:
                 elements_to_delete = await cursor.fetchall()
 
@@ -947,6 +956,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         print(f"Erreur HTTP lors de la suppression du rôle {role_id}: {e}")
 
             # Vider la table pour ce serveur
+            # Pas besoin de row_factory pour un simple DELETE
             await conn.execute("DELETE FROM created_elements WHERE guild_id = ?", (guild.id,))
             await conn.commit()
 

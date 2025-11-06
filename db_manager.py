@@ -3,12 +3,12 @@ import os
 
 DB_FILE = "bot_database.db"
 
-async def get_db_connection():
+def get_db_connection():
     """Crée et retourne une connexion à la base de données centrale."""
-    conn = await aiosqlite.connect(DB_FILE)
-    # Permet d'accéder aux colonnes par leur nom
-    conn.row_factory = aiosqlite.Row
-    return conn
+    # On retourne directement la coroutine de connexion.
+    # 'async with' se chargera de l'await.
+    # On ne peut pas définir row_factory ici, on le fera après la connexion.
+    return aiosqlite.connect(DB_FILE)
 
 async def initialize_database():
     """
@@ -16,6 +16,7 @@ async def initialize_database():
     Cette fonction est appelée une seule fois au démarrage du bot.
     """
     async with get_db_connection() as conn:
+        conn.row_factory = aiosqlite.Row
         cursor = await conn.cursor() # noqa
 
         # Table pour les avertissements (du cog Moderation)

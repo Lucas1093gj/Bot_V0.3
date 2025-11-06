@@ -39,10 +39,11 @@ class TicketsCog(commands.Cog, name="Tickets"):
     async def ticket(self, interaction: discord.Interaction, sujet: str):
         await interaction.response.defer(ephemeral=True)
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,))
-        record = cursor.fetchone() # noqa
+        record = None
+        async with get_db_connection() as conn:
+            conn.row_factory = aiosqlite.Row
+            async with conn.execute("SELECT ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
+                record = await cursor.fetchone()
 
         ticket_category = None
         if record and record['ticket_category_id']:
@@ -62,15 +63,14 @@ class TicketsCog(commands.Cog, name="Tickets"):
                     reason="Création automatique de la catégorie pour les tickets"
                 )
                 # Sauvegarder l'ID de la nouvelle catégorie dans la base de données
-                cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, ticket_category.id))
-                conn.commit()
+                async with get_db_connection() as conn_save:
+                    await conn_save.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, ticket_category.id))
+                    await conn_save.commit()
             except discord.Forbidden:
                 await interaction.followup.send("❌ Je n'ai pas la permission de créer une catégorie. Veuillez me donner la permission 'Gérer les salons' ou créer manuellement une catégorie 'Tickets' et la configurer avec `/discordmaker setup`.", ephemeral=True)
-                conn.close()
                 return
             except Exception as e:
                 await interaction.followup.send(f"❌ Une erreur est survenue lors de la création de la catégorie de tickets : {e}", ephemeral=True)
-                conn.close()
                 return
 
         # Récupérer les rôles de staff
@@ -119,7 +119,6 @@ class TicketsCog(commands.Cog, name="Tickets"):
 
         await ticket_channel.send(content=staff_mention, embed=embed, view=CloseTicketView())
         await interaction.followup.send(f"✅ Votre ticket a été créé : {ticket_channel.mention}", ephemeral=True)
-        conn.close()
 
     @ticket.error
     async def ticket_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
