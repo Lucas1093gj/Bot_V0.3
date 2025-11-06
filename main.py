@@ -31,7 +31,7 @@ if not DISCORD_TOKEN:
 
 # Initialisation de la base de données avant de lancer le bot
 print("[Startup] Initialisation de la base de données...")
-db_manager.initialize_database()
+# L'initialisation se fera de manière asynchrone dans setup_hook
 
 #initialisation du bot
 # On active tous les intents pour plus de simplicité, mais en production,
@@ -70,9 +70,10 @@ async def on_wavelink_node_ready(payload: wavelink.NodeReadyEventPayload):
 @bot.event
 async def setup_hook():
     """Ce hook est appelé avant on_ready, idéal pour initialiser des services."""
-    # Connexion à la base de données
-    bot.db_conn = db_manager.get_db_connection()
-    print("[Startup] Connexion à la base de données établie.")
+    # Initialisation asynchrone de la base de données
+    await db_manager.initialize_database()
+    # La connexion sera gérée par chaque cog/fonction qui en a besoin
+    print("[Startup] Base de données initialisée.")
     
     # Création et connexion initiale aux noeuds Lavalink
     nodes = []
@@ -129,14 +130,11 @@ async def close():
     if logger_cog:
         print("[Shutdown] Écriture des logs restants...")
         await logger_cog.flush_logs()
-
-    # Nettoyer les connexions
-    if hasattr(bot, 'db_conn') and bot.db_conn:
-        bot.db_conn.close()
-        print("[Shutdown] Connexion à la base de données fermée.")
+    
     # Fermeture propre de la connexion aux noeuds Lavalink
     await wavelink.Pool.close()
-    print("[Shutdown] Connexions aux noeuds Lavalink et à la DB fermées.")
+    print("[Shutdown] Connexions aux noeuds Lavalink fermées.")
+
 
 print("Le bot démarre... 123")
 #lancement du bot
