@@ -665,67 +665,6 @@ class MusicCog(commands.Cog):
 
 async def setup(bot: commands.Bot, **kwargs):
     await bot.add_cog(MusicCog(bot))
-        """Recherche une ou plusieurs chansons et les ajoute à la file d'attente."""
-        # Si c'est un lien Spotify, on le traite différemment
-        if self.sp and ("open.spotify.com/track" in query or "open.spotify.com/playlist" in query):
-            try:
-                if "track" in query:
-                    track_info = self.sp.track(query)
-                    artist_name = track_info['artists'][0]['name']
-                    track_name = track_info['name']
-                    # On reformate la requête pour une recherche YouTube plus efficace
-                    query = f"ytsearch:{artist_name} - {track_name}"
-                elif "playlist" in query:
-                    # Pour les playlists, on laisse wavelink tenter de les gérer, car il peut avoir un plugin pour ça.
-                    # Si ça échoue, l'erreur sera attrapée ci-dessous.
-                    pass
-            except spotipy.exceptions.SpotifyException as e:
-                await interaction.followup.send(f"❌ Erreur avec l'API Spotify : {e}", ephemeral=True)
-                return 0
-            except Exception as e:
-                print(f"[Spotify Error] Erreur lors du traitement du lien Spotify '{query}': {e}")
-                await interaction.followup.send("❌ Une erreur est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
-                return 0
-
-        player: wavelink.Player = interaction.guild.voice_client
-        try:
-            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien
-            if not query.startswith(('http', 'ytsearch:', 'scsearch:')):
-                query = f"ytmsearch:{query}"
-
-            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
-        except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
-            # Log the detailed error for debugging
-            print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
-            await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
-            return 0
-
-        if not tracks:
-            await interaction.followup.send(f"❌ Impossible de trouver une correspondance pour `{query}`.", ephemeral=True)
-            return 0
-
-        added_count = 0
-        if isinstance(tracks, wavelink.Playlist):
-            added_count = len(tracks)
-            for track in tracks:
-                track.extras = {"requester_id": interaction.user.id}
-            if add_to_top:
-                player.queue.put_at_front(tracks.tracks)
-            else:
-                player.queue.put(tracks.tracks)
-        else:
-            track = tracks[0]
-            track.extras = {"requester_id": interaction.user.id}
-            added_count = 1
-            if add_to_top:
-                player.queue.put_at_front(track) # noqa
-            else:
-                await player.queue.put_wait(track)
-        
-        if not player.playing:
-            await player.play(player.queue.get())
-
-        return added_count
 
     @music_group.command(name="queue", description="Affiche la file d'attente actuelle")
     async def queue(self, interaction: discord.Interaction):
