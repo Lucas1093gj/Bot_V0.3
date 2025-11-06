@@ -486,11 +486,15 @@ class MusicCog(commands.Cog):
             try:
                 if "track" in query:
                     track_info = self.sp.track(query)
-                    artist_name = track_info['artists'][0]['name']
-                    track_name = track_info['name']
+                    # On nettoie le nom de l'artiste et du titre pour une meilleure recherche YouTube
+                    # On prend le premier artiste et on retire les informations entre parenthèses du titre
+                    artist_name = track_info['artists'][0]['name'].strip()
+                    track_name = re.sub(r'\s*\(.*\)', '', track_info['name']).strip()
+
                     # On transforme la requête en une recherche YouTube et on la traite comme une recherche normale
                     query = f"ytsearch:{artist_name} - {track_name}"
                     # Pas de return ici, on laisse le code continuer pour traiter la nouvelle query
+                    print(f"[Spotify] Converted track link to YouTube search: '{query}'") # Log pour le débogage
                 
                 elif "playlist" in query or "album" in query:
                     is_album = "album" in query
@@ -507,8 +511,9 @@ class MusicCog(commands.Cog):
                     tracks_to_add = []
                     for track in items:
                         if not track: continue
-                        artist_name = track['artists'][0]['name']
-                        track_name = track['name']
+                        # Même nettoyage que pour une piste unique
+                        artist_name = track['artists'][0]['name'].strip()
+                        track_name = re.sub(r'\s*\(.*\)', '', track['name']).strip()
                         tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
                     
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
