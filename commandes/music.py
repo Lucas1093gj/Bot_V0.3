@@ -261,7 +261,7 @@ class MusicCog(commands.Cog):
         # On vérifie si la musique s'est terminée naturellement et que la file est vide.
         if payload.reason == "FINISHED" and player.queue.is_empty:
             if player.home:
-                await player.home.send("✅ File d'attente terminée. Je quitte le salon vocal.")
+                await player.home.send("✅ File d'attente terminée.")
             # On attend un court instant pour que le message soit visible avant de déconnecter.
             await asyncio.sleep(2)
             await player.disconnect()
@@ -378,8 +378,8 @@ class MusicCog(commands.Cog):
                 
                 # Vérification pour déconnecter le bot s'il est inactif
                 elif not player.playing and player.connected and player.queue.is_empty:
-                    if player.home:
-                        await player.home.send("✅ File d'attente terminée. Je quitte le salon vocal.")
+                    if hasattr(player, 'home') and player.home:
+                        await player.home.send("✅ Inactif et file d'attente vide. Déconnexion.")
                     await player.disconnect()
 
 
