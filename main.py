@@ -42,11 +42,9 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # Nœuds plus fiables fournis par des services dédiés.
-    # Source: https://lava-link.com/nodes
-    {"host": "us1.lava-link.com", "port": 80, "password": "LAVA", "secure": False, "region": "us"},
-    {"host": "eu.lava-link.com", "port": 80, "password": "LAVA", "secure": False, "region": "eu"},
-    {"host": "as.lava-link.com", "port": 80, "password": "LAVA", "secure": False, "region": "asia"},
+    # Liste de nœuds publics v4. La fiabilité peut varier, mais ils sont largement utilisés.
+    {"host": "lava.link", "port": 80, "password": "LAVA", "secure": False, "region": "eu"},
+    {"host": "lavalink.oops.wtf", "port": 2000, "password": "www.oops.wtf", "secure": False, "region": "us"},
 ]
 
 @bot.event
