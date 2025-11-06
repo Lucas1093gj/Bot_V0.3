@@ -1,0 +1,95 @@
+Titre
+
+Un bot Discord multifonction pour la gestion de serveur, la modération, la musique, et l'engagement communautaire, de A à Z.
+
+---
+
+Description longue
+
+Découvrez un bot polyvalent et puissant, conçu pour transformer la gestion de votre serveur Discord. Grâce à une architecture modulaire et robuste, il offre une suite complète d'outils pour les administrateurs et les membres.
+
+**Fonctionnalités Principales :**
+
+*   **⚙️ DiscordMaker :** Le cœur du bot. Construisez, configurez, sauvegardez et restaurez l'intégralité de la structure de votre serveur (rôles, salons, permissions) via des commandes intuitives. Lancez un serveur complet en quelques minutes !
+
+*   **🛡️ Modération Avancée :** Gardez votre communauté saine avec un arsenal complet : `/warn`, `/mute`, `/clear`, `/lock`, et un historique des sanctions. Toutes les actions sont enregistrées dans un salon de logs dédié pour une transparence totale.
+
+*   **🎵 Musique & Radio :** Un système musical complet prenant en charge YouTube et Spotify (pistes et playlists). Profitez d'une file d'attente, de la répétition, du mélange, et de contrôles interactifs persistants. Passez à la radio en direct avec des stations préconfigurées.
+
+*   **🎟️ Système de Tickets :** Offrez un support privé et organisé à vos membres. La commande `/ticket` crée un salon dédié pour une communication directe avec le staff.
+
+*   **📝 Journal d'Audit Discret :** Enregistre automatiquement tous les messages supprimés et modifiés dans une base de données, récupérable par les administrateurs pour une surveillance efficace et respectueuse.
+
+*   **🎉 Utilitaires & Engagement :**
+    *   Créez des sondages (`/poll`).
+    *   Attribuez des rôles automatiquement via un menu interactif (`/post-roles`).
+    *   Consultez les informations du serveur et des utilisateurs (`/serverinfo`, `/userinfo`).
+    *   Un système de niveaux (`/rank`) pour récompenser l'activité.
+
+Ce bot est la solution tout-en-un pour administrer, animer et sécuriser votre serveur Discord.
+
+---
+
+Préfixe
+
+Le bot utilise principalement les commandes slash (`/`), mais le préfixe traditionnel est `!`.
+
+---
+
+Catégories
+
+1.  Administration de Serveur
+2.  Modération
+3.  Musique
+4.  Outils pour Serveur
+5.  Fun
+6.  Utilitaire
+7.  Social
+8.  Logging
+9.  Engagement
+10. Nivellement
+11. Radio
+12. Gestion de Rôles
+
+---
+
+Note pour l'évalutateur
+
+Bonjour,
+
+Voici quelques informations techniques importantes concernant le bot :
+
+*   **Architecture :** Le bot est construit sur une architecture modulaire robuste utilisant des `cogs` pour chaque grande fonctionnalité (musique, modération, discordmaker, etc.), ce qui assure une bonne séparation des préoccupations et facilite la maintenance.
+*   **Robustesse :**
+    *   Les opérations critiques et longues (comme la construction de serveur via `/discordmaker start`) sont protégées par un `asyncio.Lock` pour éviter les redémarrages ou les opérations concurrentes qui pourraient corrompre l'état du serveur.
+    *   Le système de logs (`logger.py`) utilise une `asyncio.Queue` et une tâche en arrière-plan pour écrire dans la base de données, évitant ainsi de bloquer le bot lors de pics d'activité.
+    *   Le module musical gère la sauvegarde et la restauration de la file d'attente en cas de déconnexion, et utilise des contrôles interactifs persistants qui restent fonctionnels même après un redémarrage du bot.
+*   **Prérequis :** Pour un fonctionnement optimal, le bot nécessite les **Intents Privilégiés** (`Server Members`, `Message Content`) activés sur le portail développeur Discord. La fonctionnalité musicale requiert également que `FFmpeg` soit installé et accessible dans le PATH du système d'hébergement.
+*   **Configuration :** La configuration (tokens, clés API) est gérée proprement via un fichier `.env`.
+
+*   **Hébergement :** Le bot est actuellement hébergé à domicile sur un Raspberry Pi, ce qui peut influencer sa disponibilité et ses performances.
+Merci pour votre temps et votre évaluation.
+
+---
+
+Lien d'invitation
+
+https://discord.com/oauth2/authorize?client_id=1432025285955424347&scope=bot&permissions=8
+
+---
+
+Lien du dépôt Git
+
+Le projet n'est pas open-source pour le moment.
+
+---
+
+Lien de support
+
+https://discord.gg/dbl
+
+---
+
+Lien de l'arrière-plan
+
+Aucun pour le moment.

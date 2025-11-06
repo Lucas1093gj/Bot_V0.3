@@ -1,6 +1,5 @@
 {
     "queue": [],
-    "loop_mode": null,
-    "volume": 0.15,
-    "text_channel_id": 1434341522668654728
+    "loop_mode": "normal",
+    "volume": 30
 }

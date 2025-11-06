@@ -78,28 +78,24 @@ class UtilsCog(commands.Cog, name="Utilitaires"):
     @app_commands.command(name="volume", description="Règle le volume du bot pour la musique ou la radio (0-100).")
     @app_commands.describe(niveau="Le pourcentage de volume souhaité.")
     async def volume(self, interaction: discord.Interaction, niveau: app_commands.Range[int, 0, 100]):
-        """Règle le volume du bot pour le serveur actuel."""
+        """Règle le volume du bot pour la musique (Wavelink) ou la radio (FFMPEG)."""
         vc = interaction.guild.voice_client
-        new_volume = niveau / 100
-
-        # Récupérer le cog de musique pour accéder à l'état
-        music_cog = self.bot.get_cog("MusicCog")
-        if not music_cog:
-            await interaction.response.send_message("❌ Le module de musique semble désactivé.", ephemeral=True)
+        if not vc:
+            await interaction.response.send_message("❌ Le bot n'est connecté à aucun salon vocal.", ephemeral=True)
             return
-
-        state = music_cog.get_guild_state(interaction.guild.id)
-        state.volume = new_volume
-
-        # Sauvegarder l'état pour que le volume persiste après un redémarrage
-        music_cog._save_state(interaction.guild.id, state)
-
-        # Sauvegarde le volume pour les futures lectures
-        if vc and vc.is_connected() and vc.source:
-            vc.source.volume = new_volume
-            await interaction.response.send_message(f"🔊 Volume réglé à **{niveau}%** pour la lecture en cours.")
+        
+        # Cas 1: Le lecteur est un lecteur Wavelink (pour la musique)
+        if hasattr(vc, 'set_volume'): # Vérifie si c'est un wavelink.Player
+            await vc.set_volume(niveau)
+            await interaction.response.send_message(f"🔊 Volume de la musique réglé à **{niveau}%**.")
+        
+        # Cas 2: Le lecteur est un lecteur FFMPEG (pour la radio)
+        elif vc.source and isinstance(vc.source, discord.FFmpegPCMAudio):
+            vc.source.volume = niveau / 100
+            await interaction.response.send_message(f"🔊 Volume de la radio réglé à **{niveau}%**.")
+        
         else:
-            await interaction.response.send_message(f"🔊 Volume pré-réglé à **{niveau}%** pour les prochaines lectures.")
+            await interaction.response.send_message("🤔 Aucune lecture en cours pour ajuster le volume.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot, **kwargs):

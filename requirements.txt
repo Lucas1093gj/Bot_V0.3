@@ -1,6 +1,6 @@
 py-cord[voice]
 python-dotenv
-spotipy
+wavelink
 yt-dlp
 
 # Dépendances pour les tests

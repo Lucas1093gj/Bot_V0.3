@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from .music import FFMPEG_OPTIONS, GuildMusicState
+from .music import FFMPEG_OPTIONS
 
 # Dictionnaire des URLs de flux radio
 RADIO_STREAMS = {
@@ -64,8 +64,8 @@ class RadioCog(commands.Cog, name="Radio"):
             await interaction.response.send_message("❌ Le module de musique semble désactivé. Impossible de continuer.", ephemeral=True)
             return
 
-        state = music_cog.get_guild_state(interaction.guild.id)
-        if state.queue:
+        player: wavelink.Player = interaction.guild.voice_client
+        if player and not player.queue.is_empty:
             embed = discord.Embed(
                 title="⚠️ Confirmation Requise",
                 description="Lancer la radio va **arrêter la musique actuelle et vider la file d'attente**.\n\nVoulez-vous continuer ?",
@@ -74,10 +74,11 @@ class RadioCog(commands.Cog, name="Radio"):
             await interaction.response.send_message(embed=embed, view=ConfirmRadioView(self, interaction, station), ephemeral=True)
         else:
             # Pas de file d'attente, on lance directement
-            await self.launch_radio(interaction, station)
+            await self.launch_radio(interaction, station, confirmed=False)
 
     async def launch_radio(self, interaction: discord.Interaction, station: app_commands.Choice[str], confirmed: bool = False):
-        if not confirmed and not interaction.response.is_done():
+        # Si la confirmation n'a pas été demandée, on doit différer la réponse initiale.
+        if not interaction.response.is_done():
             await interaction.response.defer()
 
         stream_url = RADIO_STREAMS.get(station.value)
@@ -85,27 +86,32 @@ class RadioCog(commands.Cog, name="Radio"):
         try:
             vc = interaction.guild.voice_client or await interaction.user.voice.channel.connect()
         except discord.ClientException:
-            await interaction.followup.send("❌ Le bot est déjà connecté à un autre salon.", ephemeral=True)
+            await interaction.followup.send("❌ Le bot est déjà connecté à un autre salon.", ephemeral=True, view=None)
             return
 
         if vc.is_playing() or vc.is_paused():
             vc.stop()
 
-        music_cog = self.bot.get_cog("MusicCog")
-        state = music_cog.get_guild_state(interaction.guild.id)
-        async with state.lock:
-            state.queue.clear()
-            music_cog._save_state(interaction.guild.id, state) # CORRECTION: Utilise la bonne fonction de sauvegarde
+        # Vider la file d'attente
+        player: wavelink.Player = interaction.guild.voice_client
+        if player:
+            player.queue.clear()
 
-        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS), volume=state.volume)
+        # Le volume est géré par le player wavelink, pas par PCMVolumeTransformer ici.
+        # Le volume sera appliqué par le player lui-même.
+        source = discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS)
         vc.play(source, after=lambda e: print(f'Erreur de lecture radio: {e}') if e else None)
 
         embed = discord.Embed(
             title=f"📻 Lecture en cours : {station.name}",
-            description=f"Le bot diffuse maintenant la radio en direct. Utilisez `/musique volume` pour ajuster le son.",
+            description=f"Le bot diffuse maintenant la radio en direct. Utilisez `/volume` pour ajuster le son.",
             color=discord.Color.green()
         )
-        await interaction.followup.send(embed=embed, view=None) # view=None pour nettoyer les boutons de confirmation
+        # Utiliser followup.send si la réponse a été différée, sinon edit_original_response si on vient d'une confirmation.
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=embed, view=None)
+        else: # Devrait être le cas de la confirmation
+            await interaction.edit_original_response(embed=embed, view=None)
 
 async def setup(bot: commands.Bot, **kwargs):
     await bot.add_cog(RadioCog(bot))
