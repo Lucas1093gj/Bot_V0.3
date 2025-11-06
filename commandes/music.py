@@ -537,8 +537,20 @@ class MusicCog(commands.Cog):
             if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
                 query = f"ytsearch:{query}"
 
-            # Laisser Wavelink choisir le meilleur noeud pour la recherche. C'est la méthode recommandée.
-            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query)
+            # --- Stratégie de recherche avec secours ---
+            # 1. Première tentative avec la requête complète
+            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query) # noqa
+
+            # 2. Si la première tentative échoue et que c'est une recherche Spotify, on tente une recherche plus simple.
+            if not tracks and query.startswith("ytsearch:"):
+                # On extrait uniquement le titre de la chanson (ce qui est après le "-")
+                parts = query.split(' - ', 1)
+                if len(parts) > 1:
+                    simple_query = f"ytsearch:{parts[1].strip()}"
+                    print(f"[Wavelink Search] La recherche pour '{query}' a échoué. Tentative avec une recherche simplifiée : '{simple_query}'")
+                    tracks = await wavelink.Playable.search(simple_query)
+
+
         except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
             print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
             await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
@@ -581,13 +593,22 @@ class MusicCog(commands.Cog):
             try:
                 await asyncio.sleep(0.2)
                 # Laisser Wavelink choisir le meilleur noeud.
-                tracks = await wavelink.Playable.search(query)
+                tracks = await wavelink.Playable.search(query) # noqa
+
+                # Stratégie de secours également pour les playlists
+                if not tracks and query.startswith("ytsearch:"):
+                    parts = query.split(' - ', 1)
+                    if len(parts) > 1:
+                        simple_query = f"ytsearch:{parts[1].strip()}"
+                        tracks = await wavelink.Playable.search(simple_query)
+
                 if tracks:
                     track = tracks[0]
                     track.extras = {"requester_id": interaction.user.id}
                     track_list_for_queue.append(track)
                     added_count += 1
                 else:
+                    print(f"[Music Search Error] Échec de la recherche pour la piste de playlist : '{query}'")
                     # La recherche n'a rien donné, on note le nom pour le rapport
                     failed_tracks.append(query.replace("ytsearch:", "").strip())
             except Exception as e:
