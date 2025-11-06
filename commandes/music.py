@@ -490,11 +490,13 @@ class MusicCog(commands.Cog):
                     track_name = track_info['name']
                     # On transforme la requête en une recherche YouTube et on la traite comme une recherche normale
                     query = f"ytsearch:{artist_name} - {track_name}"
+                    # Pas de return ici, on laisse le code continuer pour traiter la nouvelle query
                 
                 elif "playlist" in query or "album" in query:
                     is_album = "album" in query
                     item_type = "l'album" if is_album else "la playlist"
                     
+                    # On informe l'utilisateur que l'ajout est en cours
                     if is_album:
                         results = self.sp.album_tracks(query)
                         items = results['items']
@@ -510,8 +512,10 @@ class MusicCog(commands.Cog):
                         tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
                     
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
+                    # On envoie un message de confirmation et on arrête la fonction ici
+                    # car _add_multiple_tracks s'occupe du reste en arrière-plan.
                     await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis {item_type} Spotify en cours...", ephemeral=True)
-                    return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès et arrête le traitement ici.
+                    return len(tracks_to_add)
 
             except spotipy.SpotifyException as e:
                 print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
