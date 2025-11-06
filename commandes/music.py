@@ -520,8 +520,8 @@ class MusicCog(commands.Cog):
 
         # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
-            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien ou une recherche formatée (ytsearch/scsearch)
-            if not query.startswith(('http', 'ytsearch:', 'scsearch:')):
+            # On force la recherche sur YouTube Music si ce n'est pas déjà un lien ou une recherche formatée
+            if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
                 query = f"ytmsearch:{query}"
 
             tracks: list[wavelink.Playable] = await wavelink.Playable.search(query, source=wavelink.TrackSource.YouTubeMusic)
