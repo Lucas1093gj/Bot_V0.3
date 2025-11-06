@@ -474,7 +474,7 @@ class MusicCog(commands.Cog):
         await player.seek(seek_seconds * 1000)
 
     async def _add_song_to_queue(self, interaction: discord.Interaction, query: str, add_to_top: bool = False) -> int:
-        """Recherche une ou plusieurs chansons et les ajoute à la file d'attente."""
+        """Recherche une ou plusieurs chansons et les ajoute à la file d'attente. Renvoie le nombre de pistes ajoutées."""
         player: wavelink.Player = interaction.guild.voice_client
 
         # --- Traitement spécial pour Spotify ---
@@ -515,7 +515,7 @@ class MusicCog(commands.Cog):
                     
                     # On lance l'ajout en arrière-plan pour ne pas faire attendre l'utilisateur
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
-                    await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis la playlist Spotify en cours...", ephemeral=True)
+                    # Le message de confirmation est maintenant envoyé depuis la tâche elle-même pour éviter la confusion.
                     return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès
 
             except Exception as e:
@@ -592,79 +592,6 @@ class MusicCog(commands.Cog):
 
         # Envoyer un message de confirmation final
         await interaction.channel.send(f"✅ **{added_count} / {len(queries)}** musiques de la playlist Spotify ont été ajoutées à la file d'attente.")
-
-    @music_group.command(name="queue", description="Affiche la file d'attente actuelle")
-    async def queue(self, interaction: discord.Interaction):
-        player: wavelink.Player = interaction.guild.voice_client # noqa
-        if not player or player.queue.is_empty:
-            await interaction.response.send_message("🎶 La file d'attente est vide.", ephemeral=True)
-            return
-
-        embed = discord.Embed(title="🎶 File d'attente", color=discord.Color.blue())
-        description = []
-        total_length = 0
-        displayed_count = 0
-
-        for i, track in enumerate(player.queue):
-            line = f"`{i+1}.` {track.title}\n"
-            if displayed_count < 10 and total_length + len(line) < 4000:
-                description.append(line)
-                total_length += len(line)
-                displayed_count += 1
-            else:
-                break
-
-        embed.description = "".join(description)
-        if len(player.queue) > displayed_count:
-            embed.set_footer(text=f"et {len(player.queue) - displayed_count} autre(s) morceau(x).")
-
-        await interaction.response.send_message(embed=embed)
-
-    @music_group.command(name="clear", description="Vide la file d'attente")
-    async def clear(self, interaction: discord.Interaction): # noqa
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player or player.queue.is_empty:
-            await interaction.response.send_message("🎶 La file d'attente est déjà vide.", ephemeral=True)
-            return
-        player.queue.clear()
-        await interaction.response.send_message("🧹 La file d'attente a été vidée.")
-
-    @music_group.command(name="shuffle", description="Mélange la file d'attente.")
-    async def shuffle(self, interaction: discord.Interaction): # noqa
-        """Mélange la file d'attente actuelle du serveur."""
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player or len(player.queue) < 2:
-            await interaction.response.send_message("❌ Il n'y a pas assez de musiques dans la file d'attente pour les mélanger.", ephemeral=True)
-            return
-        
-        player.queue.shuffle()
-        await interaction.response.send_message("🔀 La file d'attente a été mélangée !")
-
-    @music_group.command(name="loop", description="Répète la musique ou la file d'attente.")
-    @app_commands.describe(mode="Choisissez le mode de répétition.")
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="Musique actuelle (track)", value="track"),
-        app_commands.Choice(name="File d'attente (queue)", value="queue"),
-        app_commands.Choice(name="Désactivé (off)", value="off"),
-    ])
-    async def loop(self, interaction: discord.Interaction, mode: app_commands.Choice[str]):
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
-            return await interaction.response.send_message("❌ Le bot n'est pas connecté.", ephemeral=True)
-
-        if mode.value == "off":
-            player.queue.mode = wavelink.QueueMode.normal
-            await interaction.response.send_message("🔁 Répétition désactivée.")
-        elif mode.value == "track":
-            player.queue.mode = wavelink.QueueMode.loop # noqa
-            await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
-        elif mode.value == "queue":
-            player.queue.mode = wavelink.QueueMode.loop_all # noqa
-            await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
-
-
-async def setup(bot: commands.Bot, **kwargs):
-    await bot.add_cog(MusicCog(bot))
 
     @music_group.command(name="queue", description="Affiche la file d'attente actuelle")
     async def queue(self, interaction: discord.Interaction):
