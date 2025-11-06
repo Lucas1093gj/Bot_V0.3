@@ -225,9 +225,10 @@ class MusicCog(commands.Cog):
 
         # Créer le message "En cours de lecture"
         embed = self.build_now_playing_embed(player)
-        # We store the now_playing_message directly on the player object.
-        # We also initialize it to None if it doesn't exist.
-        setattr(player, "now_playing_message", None)
+        # On s'assure que l'attribut existe. S'il est déjà défini par une autre opération,
+        # on ne l'écrase pas, sinon on l'initialise à None.
+        if not hasattr(player, "now_playing_message"):
+            player.now_playing_message = None
         player.now_playing_message = await player.home.send(embed=embed, view=MusicControls(self.bot))
 
     @commands.Cog.listener()

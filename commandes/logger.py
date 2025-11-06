@@ -18,6 +18,10 @@ class LoggerCog(commands.Cog):
         # Arrêter proprement la tâche en arrière-plan
         self.db_writer_task.cancel()
 
+    async def flush_logs(self):
+        """Force l'écriture de tous les logs restants dans la file d'attente."""
+        await self.db_writer_task()
+
     @tasks.loop(seconds=5.0)
     async def db_writer_task(self):
         """Tâche qui s'exécute en continu pour écrire les logs dans la base de données."""

@@ -75,8 +75,12 @@ class ModerationCog(commands.Cog, name="Modération"):
         if membre.id == interaction.user.id:
             await interaction.response.send_message("❌ Vous ne pouvez pas vous avertir vous-même.", ephemeral=True)
             return
-        if membre.top_role >= interaction.user.top_role and interaction.guild.owner != interaction.user:
+        # Vérification de la hiérarchie (y compris par rapport au bot lui-même)
+        if membre.top_role >= interaction.user.top_role and interaction.guild.owner_id != interaction.user.id:
             await interaction.response.send_message("❌ Vous ne pouvez pas avertir un membre ayant un rôle égal ou supérieur au vôtre.", ephemeral=True)
+            return
+        if membre.top_role >= interaction.guild.me.top_role:
+            await interaction.response.send_message("❌ Je ne peux pas avertir ce membre car son rôle est supérieur ou égal au mien.", ephemeral=True)
             return
 
         cursor = self.db_conn.cursor()

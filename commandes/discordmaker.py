@@ -626,15 +626,13 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     )
                     embed.set_footer(text="Si vous rencontrez un problème, contactez un membre du staff.")
                     await verification_channel.send(embed=embed, view=VerificationView())
-
-            # Si un nettoyage a eu lieu, le salon original n'existe peut-être plus. On envoie un DM.
-            if config.get("cleanup_policy") == "delete":
-                try:
-                    await interaction.user.send(f"✅ La construction du serveur **{guild.name}** est terminée !")
-                except discord.Forbidden:
-                    print(f"Impossible d'envoyer un DM à {interaction.user} pour confirmer la fin de la construction.")
-            else:
-                await interaction.followup.send("✅ Construction du serveur terminée !", ephemeral=True)
+            
+            # Envoyer la confirmation finale en DM pour s'assurer que l'utilisateur la reçoit
+            try:
+                await interaction.user.send(f"✅ La construction du serveur **{guild.name}** est terminée !")
+            except discord.Forbidden:
+                # Si les DMs sont fermés, on tente de répondre au followup, mais ça peut échouer si le salon a été supprimé.
+                await interaction.followup.send("✅ Construction du serveur terminée ! (Impossible d'envoyer une confirmation en DM)", ephemeral=True)
 
     @maker_group.command(name="reset", description="Nettoie les rôles et salons créés par le bot.")
     @app_commands.checks.has_permissions(administrator=True)

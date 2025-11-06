@@ -8,8 +8,6 @@ import time
 class LevelingCog(commands.Cog, name="Leveling"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Dictionnaire pour gérer les cooldowns par utilisateur (guild_id, user_id) -> timestamp
-        self.user_cooldowns = {}
 
     def _calculate_xp_for_level(self, level: int) -> int:
         """Calcule la quantité d'XP nécessaire pour atteindre un certain niveau."""
@@ -28,32 +26,29 @@ class LevelingCog(commands.Cog, name="Leveling"):
         if message.content.startswith(self.bot.command_prefix):
             return
 
-        # --- Gestion du Cooldown ---
-        user_key = (message.guild.id, message.author.id)
-        current_time = time.time()
-        cooldown_time = self.user_cooldowns.get(user_key, 0)
-
-        if current_time - cooldown_time < 60: # Cooldown de 60 secondes
-            return
-        
-        self.user_cooldowns[user_key] = current_time
-
         # --- Logique de gain d'XP ---
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Récupérer l'utilisateur ou le créer s'il n'existe pas
-        cursor.execute("SELECT xp, level FROM user_levels WHERE guild_id = ? AND user_id = ?", (message.guild.id, message.author.id))
+        cursor.execute("SELECT xp, level, last_message_timestamp FROM user_levels WHERE guild_id = ? AND user_id = ?", (message.guild.id, message.author.id))
         user_data = cursor.fetchone()
 
         if not user_data:
-            cursor.execute("INSERT INTO user_levels (guild_id, user_id, xp, level) VALUES (?, ?, 0, 0)", (message.guild.id, message.author.id))
-            user_data = {'xp': 0, 'level': 0}
+            # Le timestamp est en secondes (integer)
+            cursor.execute("INSERT INTO user_levels (guild_id, user_id, xp, level, last_message_timestamp) VALUES (?, ?, 0, 0, 0)", (message.guild.id, message.author.id))
+            user_data = {'xp': 0, 'level': 0, 'last_message_timestamp': 0}
+
+        # --- Gestion du Cooldown (maintenant avec la DB) ---
+        current_time = int(time.time())
+        if current_time - user_data['last_message_timestamp'] < 60: # Cooldown de 60 secondes
+            conn.close()
+            return
 
         # Ajouter de l'XP
         xp_to_add = random.randint(15, 25)
         new_xp = user_data['xp'] + xp_to_add
-        
+
         # Vérifier si l'utilisateur monte de niveau
         xp_needed = self._calculate_xp_for_level(user_data['level'])
         new_level = user_data['level']
@@ -62,7 +57,7 @@ class LevelingCog(commands.Cog, name="Leveling"):
             await message.channel.send(f"🎉 Bravo {message.author.mention}, vous avez atteint le **niveau {new_level}** !")
 
         # Mettre à jour la base de données
-        cursor.execute("UPDATE user_levels SET xp = ?, level = ? WHERE guild_id = ? AND user_id = ?", (new_xp, new_level, message.guild.id, message.author.id))
+        cursor.execute("UPDATE user_levels SET xp = ?, level = ?, last_message_timestamp = ? WHERE guild_id = ? AND user_id = ?", (new_xp, new_level, current_time, message.guild.id, message.author.id))
         conn.commit()
         conn.close()
 

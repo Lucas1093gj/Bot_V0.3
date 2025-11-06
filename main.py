@@ -114,6 +114,12 @@ async def on_ready():
 # On s'assure de fermer la connexion à la DB quand le bot s'arrête
 @bot.event
 async def close():
+    # Vider la file d'attente du logger une dernière fois
+    logger_cog = bot.get_cog("LoggerCog")
+    if logger_cog:
+        print("[Shutdown] Écriture des logs restants...")
+        await logger_cog.flush_logs()
+
     # Nettoyer les connexions
     if hasattr(bot, 'db_conn') and bot.db_conn:
         bot.db_conn.close()

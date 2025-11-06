@@ -33,5 +33,17 @@ class GeneralCog(commands.Cog):
         else:
             await interaction.response.send_message("❌ Vous n'avez pas la permission d'exécuter cette commande.", ephemeral=True)
 
+    # --- COMMANDE 3 : /force-restart ---
+    @app_commands.command(name="force-restart", description="[DANGER] Force le redémarrage du bot, même si une opération est en cours.")
+    async def force_restart(self, interaction: discord.Interaction):
+        if interaction.user.id == self.CREATOR_ID:
+            await interaction.response.send_message("⚠️ Forçage du redémarrage du bot...", ephemeral=True)
+            print(f"[Restart] {interaction.user} a FORCÉ le redémarrage du bot.")
+            await self.bot.close()
+            os.execv(sys.executable, ['python'] + sys.argv)
+        else:
+            await interaction.response.send_message("❌ Vous n'avez pas la permission d'exécuter cette commande.", ephemeral=True)
+
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(GeneralCog(bot))

@@ -1,12 +1,12 @@
 Titre
 
-Un bot Discord multifonction pour la gestion de serveur, la modération, la musique, et l'engagement communautaire, de A à Z.
+Bot Discord Tout-en-Un : Architecture Robuste pour Gestion de Serveur, Modération & Musique
 
 ---
 
 Description longue
 
-Découvrez un bot polyvalent et puissant, conçu pour transformer la gestion de votre serveur Discord. Grâce à une architecture modulaire et robuste, il offre une suite complète d'outils pour les administrateurs et les membres.
+Découvrez un bot Discord polyvalent et puissant, conçu pour transformer la gestion de votre serveur. Construit sur une architecture modulaire et robuste, il offre une suite complète d'outils pour les administrateurs, les modérateurs et les membres, avec un accent particulier sur la fiabilité et la sécurité.
 
 **Fonctionnalités Principales :**
 
@@ -14,25 +14,24 @@ Découvrez un bot polyvalent et puissant, conçu pour transformer la gestion de 
 
 *   **🛡️ Modération Avancée :** Gardez votre communauté saine avec un arsenal complet : `/warn`, `/mute`, `/clear`, `/lock`, et un historique des sanctions. Toutes les actions sont enregistrées dans un salon de logs dédié pour une transparence totale.
 
-*   **🎵 Musique & Radio :** Un système musical complet prenant en charge YouTube et Spotify (pistes et playlists). Profitez d'une file d'attente, de la répétition, du mélange, et de contrôles interactifs persistants. Passez à la radio en direct avec des stations préconfigurées.
+*   **🎵 Musique & Radio :** Un système musical basé sur Wavelink, prenant en charge YouTube et Spotify. Profitez d'une file d'attente, de la répétition, du mélange, et de contrôles interactifs persistants qui survivent aux redémarrages. La file d'attente est même sauvegardée si le bot est déconnecté et peut être restaurée !
 
 *   **🎟️ Système de Tickets :** Offrez un support privé et organisé à vos membres. La commande `/ticket` crée un salon dédié pour une communication directe avec le staff.
 
-*   **📝 Journal d'Audit Discret :** Enregistre automatiquement tous les messages supprimés et modifiés dans une base de données, récupérable par les administrateurs pour une surveillance efficace et respectueuse.
+*   **📝 Journal d'Audit Asynchrone :** Enregistre les messages supprimés et modifiés dans une base de données via une file d'attente asynchrone, garantissant aucune perte de performance pour le bot, même sous forte charge.
 
 *   **🎉 Utilitaires & Engagement :**
     *   Créez des sondages (`/poll`).
     *   Attribuez des rôles automatiquement via un menu interactif (`/post-roles`).
     *   Consultez les informations du serveur et des utilisateurs (`/serverinfo`, `/userinfo`).
-    *   Un système de niveaux (`/rank`) pour récompenser l'activité.
 
-Ce bot est la solution tout-en-un pour administrer, animer et sécuriser votre serveur Discord.
+Ce bot est la solution tout-en-un pour administrer, animer et sécuriser votre serveur Discord, avec une attention particulière portée à la robustesse et à la facilité d'utilisation.
 
 ---
 
 Préfixe
 
-Le bot utilise principalement les commandes slash (`/`), mais le préfixe traditionnel est `!`.
+Le bot utilise exclusivement les commandes slash (`/`) pour une expérience utilisateur moderne et intégrée.
 
 ---
 
@@ -44,52 +43,61 @@ Catégories
 4.  Outils pour Serveur
 5.  Fun
 6.  Utilitaire
-7.  Social
-8.  Logging
-9.  Engagement
-10. Nivellement
-11. Radio
-12. Gestion de Rôles
+7.  Logging
+8.  Gestion de Rôles
 
 ---
 
 Note pour l'évalutateur
 
-Bonjour,
+Bonjour et merci de prendre le temps d'évaluer ce projet.
 
-Voici quelques informations techniques importantes concernant le bot :
+Voici quelques points clés sur l'architecture et la conception du bot :
 
-*   **Architecture :** Le bot est construit sur une architecture modulaire robuste utilisant des `cogs` pour chaque grande fonctionnalité (musique, modération, discordmaker, etc.), ce qui assure une bonne séparation des préoccupations et facilite la maintenance.
-*   **Robustesse :**
-    *   Les opérations critiques et longues (comme la construction de serveur via `/discordmaker start`) sont protégées par un `asyncio.Lock` pour éviter les redémarrages ou les opérations concurrentes qui pourraient corrompre l'état du serveur.
-    *   Le système de logs (`logger.py`) utilise une `asyncio.Queue` et une tâche en arrière-plan pour écrire dans la base de données, évitant ainsi de bloquer le bot lors de pics d'activité.
-    *   Le module musical gère la sauvegarde et la restauration de la file d'attente en cas de déconnexion, et utilise des contrôles interactifs persistants qui restent fonctionnels même après un redémarrage du bot.
-*   **Prérequis :** Pour un fonctionnement optimal, le bot nécessite les **Intents Privilégiés** (`Server Members`, `Message Content`) activés sur le portail développeur Discord. La fonctionnalité musicale requiert également que `FFmpeg` soit installé et accessible dans le PATH du système d'hébergement.
-*   **Configuration :** La configuration (tokens, clés API) est gérée proprement via un fichier `.env`.
+*   **Architecture Modulaire (Cogs) :** Le code est organisé en `cogs` (extensions), assurant une séparation claire des responsabilités (musique, modération, discordmaker, etc.) et facilitant la maintenance et l'évolution.
 
-*   **Hébergement :** Le bot est actuellement hébergé à domicile sur un Raspberry Pi, ce qui peut influencer sa disponibilité et ses performances.
-Merci pour votre temps et votre évaluation.
+*   **Robustesse et Concurrence :**
+    *   **Verrouillage des Opérations Critiques :** Un `asyncio.Lock` (`critical_operation_lock`) est utilisé pour sérialiser les opérations longues et sensibles (ex: `/discordmaker start`, `/discordmaker restore`). Cela prévient les "race conditions" et garantit que la reconstruction d'un serveur ne peut pas être interrompue ou corrompue par une autre commande ou un redémarrage.
+    *   **Vues Persistantes :** Les interfaces utilisateur (boutons, menus déroulants) pour la musique, la vérification et les tickets sont persistantes (`timeout=None`). Elles restent fonctionnelles même après un redémarrage du bot, offrant une expérience utilisateur sans faille.
+    *   **Persistance des Données :** Le module musical sauvegarde l'état du lecteur (file d'attente, volume) lors d'une déconnexion et propose de le restaurer. L'état du serveur (rôles/salons créés, avertissements) est stocké dans une base de données SQLite pour un suivi fiable.
+
+*   **Gestion de Base de Données :**
+    *   **Centralisation :** Le module `db_manager.py` centralise la création et la connexion à la base de données, assurant une initialisation unique et propre au démarrage.
+    *   **Logging Asynchrone :** Le `LoggerCog` utilise une `asyncio.Queue` pour traiter les écritures en base de données en arrière-plan, ce qui évite de bloquer le thread principal du bot et maintient sa réactivité.
+
+*   **Configuration et Dépendances :** La configuration des clés API est gérée via un fichier `.env`, séparant le code des données sensibles. Le bot nécessite les Intents `Server Members` et `Message Content`.
+
+*   **Hébergement Actuel :** Le bot est actuellement hébergé à domicile, via un Raspberry pi dédié unqiquement a celui-ci, ce qui peut parfois influencer sa latence.
 
 ---
 
 Lien d'invitation
 
-https://discord.com/oauth2/authorize?client_id=1432025285955424347&scope=bot&permissions=8
+**Lien Recommandé (Permissions granulaires) :**
+Ce lien n'accorde que les permissions strictement nécessaires au bon fonctionnement de toutes les fonctionnalités du bot, sans accorder la permission "Administrateur". C'est le choix le plus sécurisé.
+https://discord.com/oauth2/authorize?client_id=1432025285955424347&scope=bot+applications.commands&permissions=1644722230775
+
+**Lien Administrateur (Non recommandé) :**
+Ce lien accorde la permission "Administrateur". À n'utiliser que sur des serveurs de test ou si vous avez une confiance absolue dans l'hébergeur du bot.
+https://discord.com/oauth2/authorize?client_id=1432025285955424347&scope=bot+applications.commands&permissions=8
 
 ---
 
 Lien du dépôt Git
 
-Le projet n'est pas open-source pour le moment.
+https://github.com/Lucas1093gj/Bot_V0.3/
 
 ---
 
 Lien de support
 
-https://discord.gg/dbl
-
+https://discord.gg/cYQ2SJuX 
 ---
 
 Lien de l'arrière-plan
 
 Aucun pour le moment.
+
+
+Le bot est en développement actif. De nouvelles fonctionnalités et des améliorations de performance sont prévues. N'hésitez pas à rejoindre le serveur de support pour partager vos idées ou signaler des bugs.
+Actuellement en phase de test, le bot est prêt à être déployé sur une plus grande échelle.

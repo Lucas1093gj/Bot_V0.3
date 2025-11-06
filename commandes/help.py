@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import os
 
 class HelpView(discord.ui.View):
     def __init__(self, bot: commands.Bot):
@@ -24,10 +25,12 @@ class HelpSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         # On utilise la valeur sélectionnée pour créer le bon embed
         embed = await self.create_help_embed(self.values[0])
-        await interaction.response.edit_message(embed=embed)
 
-    async def create_help_embed(self, category: str) -> discord.Embed:
-        """Crée un embed d'aide basé sur la catégorie sélectionnée."""
+    async def create_help_embed(self, category: str, user_id: int) -> discord.Embed:
+        """Crée un embed d'aide basé sur la catégoresu bot
+        creator_id = int(os.getenv("CREATOR_ID")) if os.getenv("CREATOR_ID") else None
+        is_creator = user_id == creator_id
+
         if category == "Accueil":
             return await self.create_main_embed()
 
@@ -40,10 +43,9 @@ class HelpSelect(discord.ui.Select):
             embed.add_field(name="`/discordmaker setup`", value="Ouvre le panneau de configuration interactif pour choisir les rôles, salons, etc.", inline=False)
             embed.add_field(name="`/discordmaker start`", value="Lance la construction du serveur avec la configuration définie.", inline=False)
             embed.add_field(name="`/discordmaker reset`", value="Nettoie uniquement les rôles et salons créés par le bot.", inline=False)
-            embed.add_field(name="`/discordmaker full-reset`", value="**(Owner)** Réinitialise **totalement** le serveur (une sauvegarde est envoyée en DM).", inline=False)
-            embed.add_field(name="`/discordmaker restore [fichier]`", value="**(Owner)** Restaure la structure du serveur depuis un fichier de sauvegarde `.json`.", inline=False)
-            embed.add_field(name="`/discordmaker post-roles [salon]`", value="Poste le message interactif pour que les membres s'attribuent des rôles.", inline=False)
-
+            if is_creator:
+                embed.add_field(name="`/discordmaker full-reset`", value="**(Owner)** Réinitialise **totalement** le serveur (une sauvegarde est envoyée en DM).", inline=False)
+            dk`oi_c
         elif category == "Musique":
             embed.title = "🎵 Aide - Musique"
             embed.description = "Commandes pour animer vos salons vocaux avec de la musique."
@@ -81,10 +83,10 @@ class HelpSelect(discord.ui.Select):
             embed.add_field(name="`/serverinfo`", value="Affiche des informations détaillées sur le serveur.", inline=False)
             embed.add_field(name="`/userinfo [membre]`", value="Affiche des informations sur un membre.", inline=False)
             embed.add_field(name="`/poll [question] [options...]`", value="Crée un sondage simple avec des réactions.", inline=False)
-            embed.add_field(name="`/restart`", value="**(Owner)** Redémarre le bot.", inline=False)
+            if is_creator:
+                embed.add_field(name="`/restart`", value="**(Owner)** Redémarre le bot.", inline=False)
 
         return embed
-
     async def create_main_embed(self) -> discord.Embed:
         """Crée l'embed principal (page d'accueil de l'aide)."""
         embed = discord.Embed(
@@ -118,10 +120,9 @@ class HelpCog(commands.Cog, name="Help"):
         # On crée l'instance de la vue et de l'embed initial
         view = HelpView(self.bot)
         # L'embed initial est créé par une méthode de la classe Select pour éviter la duplication de code
-        initial_embed = await view.children[0].create_main_embed()
+        initial_embed = await view.children[0].create_main_embed() # type: ignore
         
         await interaction.response.send_message(embed=initial_embed, view=view, ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
     await bot.add_cog(HelpCog(bot))
