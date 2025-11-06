@@ -1,8 +1,7 @@
-py-cord[voice]
+py-cord
 python-dotenv
 wavelink
+spotipy
+aiosqlite
 yt-dlp
-
-# Dépendances pour les tests
-# pytest
-# pytest-asyncio
+PyNaCl
