@@ -44,11 +44,11 @@ bot.critical_operation_lock = asyncio.Lock()
 LAVALINK_NODES = [
     # Utilisation d'adresses IP directes pour contourner les problèmes de DNS sur le Raspberry Pi.
     # Ces serveurs sont compatibles v4.
-    # Nouveaux nœuds v4, prioritairement par IP.
-    {"host": "5.39.63.207", "port": 8893, "password": "https://discord.gg/mjS5J2K3ep", "secure": False, "region": "AneFaiz-v4"},
-    {"host": "173.249.0.115", "port": 13592, "password": "https://camming.xyz", "secure": False, "region": "YumiTeam-v4"},
-    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-v4"},
-    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-v4-Domain"}, # Gardé en secours
+    # Liste de nœuds v4 mise à jour pour une meilleure fiabilité (Novembre 2025).
+    # On garde une priorité aux adresses IP pour le RPi.
+    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-v4-US"},
+    {"host": "lavalink.jirayu.net", "port": 13592, "password": "youshallnotpass", "secure": False, "region": "Jirayu-v4-EU"},
+    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-v4-EU"},
 ]
 
 @bot.event
