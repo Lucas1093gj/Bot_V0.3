@@ -282,14 +282,18 @@ class MusicCog(commands.Cog):
 
         # Log de l'erreur dans la console pour le débogage
         print(f"--- Wavelink Track Exception ---")
-        print(f"Serveur: {player.guild.name} ({player.guild.id})")
-        print(f"Piste: {track.title}")
+        # Il est possible que le lecteur soit détruit au moment où l'exception se produit.
+        if player and player.guild:
+            print(f"Serveur: {player.guild.name} ({player.guild.id})")
+        else:
+            print("Serveur: Inconnu (lecteur détruit)")
+        print(f"Piste: {track.title if track else 'Piste inconnue'}")
         print(f"Exception: {exception}")
         print(f"---------------------------------")
 
         # Informer l'utilisateur dans le salon où la commande a été lancée
         if player and player.home:
-            await player.home.send(f"❌ Une erreur est survenue lors de la lecture de **{track.title}**. Passage à la suivante si possible.")
+            await player.home.send(f"❌ Une erreur est survenue lors de la lecture de **{track.title if track else 'la piste'}**. Passage à la suivante si possible.")
 
     def build_now_playing_embed(self, player: wavelink.Player) -> discord.Embed:
         """Construit l'embed dynamique 'En cours de lecture'."""
