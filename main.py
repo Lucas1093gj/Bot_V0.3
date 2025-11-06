@@ -44,11 +44,12 @@ bot.critical_operation_lock = asyncio.Lock()
 LAVALINK_NODES = [
     # --- Liste de nœuds Lavalink v4 mise à jour pour une meilleure fiabilité ---
     # Ces nœuds sont connus pour être plus stables que les anciens.
-    # Wavelink choisira automatiquement le meilleur nœud disponible.
-    {"host": "lavalink.oops.wtf", "port": 2000, "password": "www.oops.wtf", "secure": False, "region": "Oops-EU"},
-    {"host": "eu-lavalink.arciniega.me", "port": 2333, "password": "youshallnotpass", "secure": False, "region": "Arciniega-EU"},
-    {"host": "us-lavalink.arciniega.me", "port": 2333, "password": "youshallnotpass", "secure": False, "region": "Arciniega-US"},
-    {"host": "lava.link", "port": 80, "password": "youshallnotpass", "secure": False, "region": "LavaLink-Main"},
+    # On privilégie les nœuds sur les ports 80 et 443 pour éviter les blocages de pare-feu.
+    {"host": "lava.link", "port": 80, "password": "youshallnotpass", "secure": False, "region": "LavaLink-Main-80"},
+    {"host": "lavalink-v4.ajieblogs.eu.org", "port": 443, "password": "https://dsc.gg/ajidevserver", "secure": True, "region": "AjieDev-EU-443"},
+    {"host": "lavalink.devamop.in", "port": 443, "password": "DevamOP", "secure": True, "region": "DevamOP-IN-443"},
+    # En secours, un nœud sur un port non standard mais souvent fiable.
+    {"host": "lavalink.moe", "port": 2333, "password": "youshallnotpass", "secure": False, "region": "Moe-EU-2333"},
 ]
 
 @bot.event
