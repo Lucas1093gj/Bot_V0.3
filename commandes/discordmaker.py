@@ -325,12 +325,11 @@ class ModLogChannelSelect(discord.ui.ChannelSelect):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        conn = get_db_connection()
-        cursor = conn.cursor()
         channel_id = int(self.values[0].id) if self.values else None
-        cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (interaction.guild.id, channel_id))
-        conn.commit()
-        conn.close()
+        async with get_db_connection() as conn:
+            await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (interaction.guild.id, channel_id))
+            await conn.commit()
+
         message = f"✅ Salon des logs de modération défini sur : {self.values[0].mention}" if channel_id else "✅ Salon des logs de modération désactivé."
         await interaction.response.send_message(message, ephemeral=True)
 
@@ -346,12 +345,11 @@ class TicketCategorySelect(discord.ui.ChannelSelect):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        conn = get_db_connection()
-        cursor = conn.cursor()
         category_id = int(self.values[0].id) if self.values else None
-        cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, category_id))
-        conn.commit()
-        conn.close()
+        async with get_db_connection() as conn:
+            await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, category_id))
+            await conn.commit()
+
         message = f"✅ Catégorie des tickets définie sur : **{self.values[0].name}**" if category_id else "✅ Système de tickets désactivé."
         await interaction.response.send_message(message, ephemeral=True)
 
@@ -404,12 +402,12 @@ class PageButton(discord.ui.Button):
             embed.add_field(name="Rôles", value=f"{len(config.get('roles', []))} configurés", inline=True)
             embed.add_field(name="Catégories", value=f"{len(config.get('channel_categories', []))} configurées", inline=True)
         elif view.current_page == 2:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT mod_log_channel_id, ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,))
-            record = cursor.fetchone()
-            conn.close()
-            log_channel_status = "✅" if record and record['mod_log_channel_id'] else "❌"
+            record = None
+            async with get_db_connection() as conn:
+                async with conn.execute("SELECT mod_log_channel_id, ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
+                    record = await cursor.fetchone()
+
+            log_channel_status = "✅" if record and record['mod_log_channel_id'] else "❌" # noqa
             ticket_category_status = "✅" if record and record['ticket_category_id'] else "❌"
 
             embed.description = "Configurez les options des modules additionnels."
@@ -519,12 +517,11 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     # Les rôles VIP et Muted ne sont pas affichés séparément
                     hoist = role_name in ["Owner", "Admin", "Modérateur", "Animateur"]
                     try:
-                        role = await guild.create_role(name=role_name, permissions=permissions, color=color, reason="DiscordMaker Setup", hoist=hoist)
+                        role = await guild.create_role(name=role_name, permissions=permissions, color=color, reason="DiscordMaker Setup", hoist=hoist) # noqa
                         # --- MARQUAGE DANS LA DB ---
-                        conn = get_db_connection()
-                        conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, role.id, 'role'))
-                        conn.commit()
-                        conn.close()
+                        async with get_db_connection() as conn:
+                            await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, role.id, 'role'))
+                            await conn.commit()
                         created_roles[role_name] = role
                         await asyncio.sleep(0.5)
                     except discord.Forbidden:
@@ -561,10 +558,9 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     try:
                         category = await guild.create_category(category_name, overwrites=cat_overwrites, reason="DiscordMaker Setup")
                         # --- MARQUAGE DANS LA DB ---
-                        conn = get_db_connection()
-                        conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, category.id, 'category'))
-                        conn.commit()
-                        conn.close()
+                        async with get_db_connection() as conn:
+                            await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, category.id, 'category'))
+                            await conn.commit()
                         await asyncio.sleep(0.5)
                     except discord.Forbidden:
                         await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer la catégorie `{category_name}`.")
@@ -582,18 +578,15 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         try:
                             new_channel = await guild.create_text_channel(channel_name, category=category, overwrites=chan_overwrites, reason="DiscordMaker Setup")
                             # --- MARQUAGE DANS LA DB ---
-                            conn = get_db_connection()
-                            conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
-                            conn.commit()
-                            conn.close()
+                            async with get_db_connection() as conn:
+                                await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
+                                await conn.commit()
                             await asyncio.sleep(0.5)
                             # Logique intelligente : si on crée le salon de logs, on le configure automatiquement
                             if "logs-modération" in channel_name:
-                                conn = get_db_connection()
-                                cursor = conn.cursor()
-                                cursor.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (guild.id, new_channel.id))
-                                conn.commit()
-                                conn.close()
+                                async with get_db_connection() as conn:
+                                    await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (guild.id, new_channel.id))
+                                    await conn.commit()
                         except discord.Forbidden:
                             await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le salon `{channel_name}`.")
 
@@ -605,10 +598,9 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                                 voice_overwrites[verified_role] = discord.PermissionOverwrite(speak=False)
                             new_channel = await guild.create_voice_channel(channel_name, category=category, overwrites=voice_overwrites, reason="DiscordMaker Setup")
                             # --- MARQUAGE DANS LA DB ---
-                            conn = get_db_connection()
-                            conn.cursor().execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
-                            conn.commit()
-                            conn.close()
+                            async with get_db_connection() as conn:
+                                await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
+                                await conn.commit()
                             await asyncio.sleep(0.5)
                         except discord.Forbidden:
                             await interaction.channel.send(f"⚠️ Je n'ai pas la permission de créer le salon `{channel_name}`.")
@@ -909,56 +901,54 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
 
     async def _cleanup_guild(self, guild: discord.Guild):
         """Nettoie UNIQUEMENT les rôles et salons créés par le bot, en se basant sur la DB."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT element_id, element_type FROM created_elements WHERE guild_id = ?", (guild.id,))
-        elements_to_delete = cursor.fetchall()
+        async with get_db_connection() as conn:
+            async with conn.execute("SELECT element_id, element_type FROM created_elements WHERE guild_id = ?", (guild.id,)) as cursor:
+                elements_to_delete = await cursor.fetchall()
 
-        # Trier pour supprimer les salons avant les catégories
-        channels = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'channel']
-        categories = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'category']
-        roles = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'role']
+            # Trier pour supprimer les salons avant les catégories
+            channels = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'channel']
+            categories = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'category']
+            roles = [e['element_id'] for e in elements_to_delete if e['element_type'] == 'role']
 
-        # Suppression des salons
-        for channel_id in channels:
-            channel = guild.get_channel(channel_id)
-            if channel:
-                try:
-                    await channel.delete(reason="DiscordMaker Reset")
-                    await asyncio.sleep(0.5)
-                except discord.Forbidden:
-                    print(f"Permissions manquantes pour supprimer le salon {channel.name} ({channel.id})")
-                except discord.HTTPException as e:
-                    print(f"Erreur HTTP lors de la suppression du salon {channel_id}: {e}")
+            # Suppression des salons
+            for channel_id in channels:
+                channel = guild.get_channel(channel_id)
+                if channel:
+                    try:
+                        await channel.delete(reason="DiscordMaker Reset")
+                        await asyncio.sleep(0.5)
+                    except discord.Forbidden:
+                        print(f"Permissions manquantes pour supprimer le salon {channel.name} ({channel.id})")
+                    except discord.HTTPException as e:
+                        print(f"Erreur HTTP lors de la suppression du salon {channel_id}: {e}")
 
-        # Suppression des catégories
-        for category_id in categories:
-            category = guild.get_channel(category_id)
-            if category:
-                try:
-                    await category.delete(reason="DiscordMaker Reset")
-                    await asyncio.sleep(0.5)
-                except discord.Forbidden:
-                    print(f"Permissions manquantes pour supprimer la catégorie {category.name} ({category.id})")
-                except discord.HTTPException as e:
-                    print(f"Erreur HTTP lors de la suppression de la catégorie {category_id}: {e}")
+            # Suppression des catégories
+            for category_id in categories:
+                category = guild.get_channel(category_id)
+                if category:
+                    try:
+                        await category.delete(reason="DiscordMaker Reset")
+                        await asyncio.sleep(0.5)
+                    except discord.Forbidden:
+                        print(f"Permissions manquantes pour supprimer la catégorie {category.name} ({category.id})")
+                    except discord.HTTPException as e:
+                        print(f"Erreur HTTP lors de la suppression de la catégorie {category_id}: {e}")
 
-        # Suppression des rôles
-        for role_id in roles:
-            role = guild.get_role(role_id)
-            if role and not role.is_integration() and not role.is_premium_subscriber() and role < guild.me.top_role:
-                try:
-                    await role.delete(reason="DiscordMaker Reset")
-                    await asyncio.sleep(0.5)
-                except discord.Forbidden:
-                    print(f"Permissions manquantes pour supprimer le rôle {role.name} ({role.id})")
-                except discord.HTTPException as e:
-                    print(f"Erreur HTTP lors de la suppression du rôle {role_id}: {e}")
+            # Suppression des rôles
+            for role_id in roles:
+                role = guild.get_role(role_id)
+                if role and not role.is_integration() and not role.is_premium_subscriber() and role < guild.me.top_role:
+                    try:
+                        await role.delete(reason="DiscordMaker Reset")
+                        await asyncio.sleep(0.5)
+                    except discord.Forbidden:
+                        print(f"Permissions manquantes pour supprimer le rôle {role.name} ({role.id})")
+                    except discord.HTTPException as e:
+                        print(f"Erreur HTTP lors de la suppression du rôle {role_id}: {e}")
 
-        # Vider la table pour ce serveur
-        cursor.execute("DELETE FROM created_elements WHERE guild_id = ?", (guild.id,))
-        conn.commit()
-        conn.close()
+            # Vider la table pour ce serveur
+            await conn.execute("DELETE FROM created_elements WHERE guild_id = ?", (guild.id,))
+            await conn.commit()
 
     async def _full_cleanup_guild(self, guild: discord.Guild):
         """Supprime TOUS les rôles et salons que le bot peut gérer."""

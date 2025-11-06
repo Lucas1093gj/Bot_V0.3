@@ -15,8 +15,8 @@ async def initialize_database():
     Initialise toutes les tables nécessaires pour le bot si elles n'existent pas.
     Cette fonction est appelée une seule fois au démarrage du bot.
     """
-    async with await get_db_connection() as conn:
-        cursor = await conn.cursor()
+    async with get_db_connection() as conn:
+        cursor = await conn.cursor() # noqa
 
         # Table pour les avertissements (du cog Moderation)
         await cursor.execute('''

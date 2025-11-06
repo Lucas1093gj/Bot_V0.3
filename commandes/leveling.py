@@ -28,8 +28,8 @@ class LevelingCog(commands.Cog, name="Leveling"):
 
         # --- Logique de gain d'XP ---
         # Utilisation d'un contexte asynchrone pour gérer la connexion
-        async with await get_db_connection() as conn:
-            cursor = await conn.cursor()
+        async with get_db_connection() as conn:
+            cursor = await conn.cursor() # noqa
 
             # Récupérer l'utilisateur ou le créer s'il n'existe pas
             await cursor.execute("SELECT xp, level, last_message_timestamp FROM user_levels WHERE guild_id = ? AND user_id = ?", (message.guild.id, message.author.id))
