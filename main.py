@@ -42,13 +42,13 @@ bot.critical_operation_lock = asyncio.Lock()
 
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
-    # Utilisation d'adresses IP directes pour contourner les problèmes de DNS sur le Raspberry Pi.
-    # Ces serveurs sont compatibles v4.
-    # Liste de nœuds v4 mise à jour pour une meilleure fiabilité (Novembre 2025).
-    # On garde une priorité aux adresses IP pour le RPi.
-    {"host": "140.238.179.182", "port": 2333, "password": "kirito", "secure": False, "region": "TriniumHost-v4-US"},
-    {"host": "lavalink.jirayu.net", "port": 13592, "password": "youshallnotpass", "secure": False, "region": "Jirayu-v4-EU"},
-    {"host": "lava-v4.ajieblogs.eu.org", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "AjieDev-v4-EU"},
+    # --- Liste de nœuds Lavalink v4 mise à jour pour une meilleure fiabilité ---
+    # Ces nœuds sont connus pour être plus stables que les anciens.
+    # Wavelink choisira automatiquement le meilleur nœud disponible.
+    {"host": "lavalink.oops.wtf", "port": 2000, "password": "www.oops.wtf", "secure": False, "region": "Oops-EU"},
+    {"host": "eu-lavalink.arciniega.me", "port": 2333, "password": "youshallnotpass", "secure": False, "region": "Arciniega-EU"},
+    {"host": "us-lavalink.arciniega.me", "port": 2333, "password": "youshallnotpass", "secure": False, "region": "Arciniega-US"},
+    {"host": "lava.link", "port": 80, "password": "youshallnotpass", "secure": False, "region": "LavaLink-Main"},
 ]
 
 @bot.event
