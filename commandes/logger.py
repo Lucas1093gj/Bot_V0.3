@@ -66,7 +66,7 @@ class LoggerCog(commands.Cog):
         guild = interaction.guild
         logs = []
         async with get_db_connection() as conn:
-            conn.row_factory = discord.sqlite3.Row
+            conn.row_factory = aiosqlite.Row
             async with conn.execute("SELECT author_id, channel_id, event_type, old_content, new_content, timestamp FROM message_events WHERE guild_id = ? ORDER BY timestamp ASC", (guild.id,)) as cursor:
                 logs = await cursor.fetchall()
 

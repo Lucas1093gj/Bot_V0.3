@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 import re
+import aiosqlite
 from db_manager import get_db_connection
 
 def parse_duration(duration_string: str) -> datetime.timedelta | None:
@@ -29,7 +30,7 @@ class ModerationCog(commands.Cog, name="Modération"):
     async def _log_action(self, interaction: discord.Interaction, embed: discord.Embed):
         """Envoie un embed dans le salon de logs de modération configuré."""
         async with get_db_connection() as conn:
-            conn.row_factory = discord.sqlite3.Row
+            conn.row_factory = aiosqlite.Row
             async with conn.execute("SELECT mod_log_channel_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
                 record = await cursor.fetchone()
         
@@ -129,7 +130,7 @@ class ModerationCog(commands.Cog, name="Modération"):
 
         records = []
         async with get_db_connection() as conn:
-            conn.row_factory = discord.sqlite3.Row
+            conn.row_factory = aiosqlite.Row
             async with conn.execute("SELECT id, moderator_id, reason, timestamp FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC", (interaction.guild.id, target_user.id)) as cursor:
                 records = await cursor.fetchall()
 
@@ -159,7 +160,7 @@ class ModerationCog(commands.Cog, name="Modération"):
     async def delwarn(self, interaction: discord.Interaction, warn_id: int):
         record = None
         async with get_db_connection() as conn:
-            conn.row_factory = discord.sqlite3.Row
+            conn.row_factory = aiosqlite.Row
             # Vérifier que l'avertissement existe et qu'il appartient bien à ce serveur
             async with conn.execute("SELECT user_id FROM warnings WHERE id = ? AND guild_id = ?", (warn_id, interaction.guild.id)) as cursor:
                 record = await cursor.fetchone()
@@ -333,7 +334,11 @@ class ModerationCog(commands.Cog, name="Modération"):
             await interaction.response.send_message("❌ Vous n'avez pas les permissions nécessaires pour cette commande.", ephemeral=True)
         else:
             print(f"Erreur dans ModerationCog: {error}")
-            await interaction.response.send_message("❌ Une erreur est survenue.", ephemeral=True)
+            # Si l'interaction a déjà une réponse (defer), on utilise followup
+            if interaction.response.is_done():
+                await interaction.followup.send("❌ Une erreur est survenue.", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Une erreur est survenue.", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ModerationCog(bot))
