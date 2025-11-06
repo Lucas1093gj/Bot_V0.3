@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from db_manager import get_db_connection
+import aiosqlite
 import random
 import time
 

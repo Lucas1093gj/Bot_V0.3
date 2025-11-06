@@ -4,6 +4,7 @@ import asyncio
 from discord.ext import commands, tasks
 import os
 from discord import app_commands
+import aiosqlite
 from db_manager import get_db_connection
 
 class LoggerCog(commands.Cog):
