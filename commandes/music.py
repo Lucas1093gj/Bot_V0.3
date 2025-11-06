@@ -525,13 +525,13 @@ class MusicCog(commands.Cog):
         # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
             # Sélectionner le meilleur nœud disponible pour la recherche
-            node = wavelink.Pool.get_node(wavelink.NodeStatus.CONNECTED)
+            node = wavelink.Pool.get_node(status=wavelink.NodeStatus.CONNECTED)
 
             # On force la recherche sur YouTube si ce n'est pas déjà un lien ou une recherche formatée
             if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
                 query = f"ytsearch:{query}"
 
-            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query, node=node)
+            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query, node=node) # noqa
         except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
             print(f"[Wavelink Search Error] Guild: {interaction.guild.id}, Query: '{query}', Error: {e}")
             await interaction.followup.send("❌ Une erreur est survenue lors de la recherche. La vidéo est peut-être privée, soumise à une restriction d'âge, ou le lien est invalide. Veuillez essayer avec un autre lien ou un autre terme de recherche.", ephemeral=True)
@@ -573,9 +573,9 @@ class MusicCog(commands.Cog):
         for query in queries:
             try:
                 # On ajoute une petite pause pour ne pas surcharger Lavalink
-                node = wavelink.Pool.get_node(wavelink.NodeStatus.CONNECTED)
+                node = wavelink.Pool.get_node(status=wavelink.NodeStatus.CONNECTED)
                 await asyncio.sleep(0.2)
-                tracks = await wavelink.Playable.search(query, node=node)
+                tracks = await wavelink.Playable.search(query, node=node) # noqa
                 if tracks:
                     track = tracks[0]
                     track.extras = {"requester_id": interaction.user.id}
