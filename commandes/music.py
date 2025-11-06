@@ -148,7 +148,8 @@ class RestoreQueueView(discord.ui.View): # noqa
     async def on_timeout(self):
         """Si l'utilisateur ne répond pas, on supprime la sauvegarde et on continue normalement."""
         _delete_state_backup(self.guild_id)
-        self.interaction.guild.voice_client.waiting_for_restore = False # Baisser le drapeau
+        if self.interaction.guild.voice_client:
+            self.interaction.guild.voice_client.waiting_for_restore = False # Baisser le drapeau
         await self.interaction.edit_original_response(content="Délai dépassé. La sauvegarde a été ignorée.", view=None)
         # On pourrait lancer la lecture de la chanson demandée ici si nécessaire
 
@@ -161,7 +162,12 @@ class RestoreQueueView(discord.ui.View): # noqa
 
         loaded_state_data = _load_state_data(self.guild_id)
         player: wavelink.Player = interaction.guild.voice_client
-        player.waiting_for_restore = False # Baisser le drapeau
+        
+        # Vérification de sécurité : si le bot a été déconnecté entre-temps
+        if not player:
+            await self.interaction.edit_original_response(content="❌ Le bot a été déconnecté. Veuillez relancer la commande.", view=None)
+            _delete_state_backup(self.guild_id)
+            return
         
         if loaded_state_data and loaded_state_data.get("queue"):
             # Restaurer le volume et la boucle
@@ -195,7 +201,8 @@ class RestoreQueueView(discord.ui.View): # noqa
     async def ignore(self, interaction: discord.Interaction, button: discord.ui.Button): # noqa
         await interaction.response.defer()
         _delete_state_backup(self.guild_id)
-        self.interaction.guild.voice_client.waiting_for_restore = False # Baisser le drapeau
+        if self.interaction.guild.voice_client:
+            self.interaction.guild.voice_client.waiting_for_restore = False # Baisser le drapeau
         await self.interaction.edit_original_response(content="🗑️ Sauvegarde ignorée. Lancement d'une nouvelle file d'attente.", view=None)
         await self.music_cog._add_song_to_queue(self.interaction, self.query)
         self.stop()
