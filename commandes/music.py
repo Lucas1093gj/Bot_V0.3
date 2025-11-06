@@ -387,7 +387,7 @@ class MusicCog(commands.Cog):
         title = re.sub(r'[^\w\s-]', '', title)
         return f"ytsearch:{artist.strip()} - {title.strip()}"
 
-    @tasks.loop(seconds=10.0)
+    @tasks.loop(seconds=20.0) # Augmentation de l'intervalle pour réduire la charge
     async def update_now_playing_loop(self):
         """Met à jour tous les messages 'En cours de lecture' actifs."""
         # The way to access players has changed in wavelink v3+.
@@ -406,10 +406,21 @@ class MusicCog(commands.Cog):
                 
                 # Vérification pour déconnecter le bot s'il est inactif
                 # On ajoute une condition pour ne pas déconnecter si on attend une restauration
-                elif not player.playing and player.connected and player.queue.is_empty and player.guild.id not in self.waiting_for_restore:
-                    if hasattr(player, 'home') and player.home:
-                        await player.home.send("✅ Inactif et file d'attente vide. Déconnexion.")
-                    await player.disconnect()
+                elif not player.playing and player.connected and player.queue.is_empty and player.guild.id not in self.waiting_for_restore: # noqa
+                    # Ajout d'un délai de grâce avant la déconnexion
+                    if not hasattr(player, 'inactive_since'):
+                        player.inactive_since = discord.utils.utcnow()
+                    
+                    # Si le bot est inactif depuis plus de 30 secondes, on le déconnecte
+                    if (discord.utils.utcnow() - player.inactive_since).total_seconds() > 30:
+                        if hasattr(player, 'home') and player.home:
+                            await player.home.send("✅ Inactif et file d'attente vide. Déconnexion.")
+                        await player.disconnect()
+                
+                # Si le bot recommence à jouer, on réinitialise le timer d'inactivité
+                elif player.playing and hasattr(player, 'inactive_since'):
+                    del player.inactive_since
+
 
 
     music_group = app_commands.Group(name="musique", description="Commandes liées à la musique")
