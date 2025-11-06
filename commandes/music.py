@@ -481,6 +481,7 @@ class MusicCog(commands.Cog):
         if self.sp and "open.spotify.com" in query:
             try:
                 if "track" in query:
+                    # C'est une seule piste Spotify
                     track_info = self.sp.track(query)
                     artist_name = track_info['artists'][0]['name']
                     track_name = track_info['name']
@@ -501,8 +502,12 @@ class MusicCog(commands.Cog):
                     if not player.playing:
                         await player.play(player.queue.get())
                     return 1
+                    # On transforme la requête en une recherche YouTube
+                    query = f"ytsearch:{artist_name} - {track_name}"
+                    # On laisse la suite du code gérer la recherche
 
                 elif "playlist" in query:
+                    # C'est une playlist, on la traite en arrière-plan
                     playlist_info = self.sp.playlist_items(query)
                     tracks_to_add = []
                     for item in playlist_info['items']:
@@ -511,16 +516,24 @@ class MusicCog(commands.Cog):
                         artist_name = track['artists'][0]['name']
                         track_name = track['name']
                         # On ne fait pas la recherche ici pour ne pas bloquer, on ajoute juste les noms
+                        # On prépare une liste de recherches YouTube
                         tracks_to_add.append(f"ytsearch:{artist_name} - {track_name}")
                     
                     # On lance l'ajout en arrière-plan pour ne pas faire attendre l'utilisateur
                     asyncio.create_task(self._add_multiple_tracks(interaction, tracks_to_add, add_to_top))
                     # Le message de confirmation est maintenant envoyé depuis la tâche elle-même pour éviter la confusion.
+                    await interaction.followup.send(f"🔄 Ajout de **{len(tracks_to_add)}** musiques depuis la playlist Spotify en cours...", ephemeral=True)
                     return len(tracks_to_add) # On retourne un nombre > 0 pour que la commande principale sache que c'est un succès
 
             except Exception as e:
+            except spotipy.SpotifyException as e:
+                print(f"[Spotify Error] Erreur API lors du traitement du lien '{query}': {e}")
+                await interaction.followup.send("❌ Une erreur est survenue avec l'API Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
+                return 0
+            except Exception as e: # noqa
                 print(f"[Spotify Error] Erreur lors du traitement du lien Spotify '{query}': {e}")
                 await interaction.followup.send("❌ Une erreur est survenue lors de la récupération des informations de Spotify. Le lien est peut-être invalide ou la playlist est privée.", ephemeral=True)
+                await interaction.followup.send("❌ Une erreur inattendue est survenue lors de la récupération des informations de Spotify.", ephemeral=True)
                 return 0
 
         # --- Traitement pour les recherches normales (YouTube, etc.) ---
@@ -542,14 +555,18 @@ class MusicCog(commands.Cog):
 
         added_count = 0
         if isinstance(tracks, wavelink.Playlist):
+            # Si la recherche renvoie une playlist YouTube
             added_count = len(tracks.tracks)
             for track in tracks.tracks:
                 track.extras = {"requester_id": interaction.user.id}
             if add_to_top:
                 player.queue.put_at_front(tracks.tracks)
+                # On doit inverser pour que la première chanson de la playlist soit jouée en premier
+                player.queue.put_at_front(reversed(tracks.tracks))
             else:
                 player.queue.put(tracks.tracks)
         else:
+            # Si la recherche renvoie une seule piste
             track = tracks[0]
             track.extras = {"requester_id": interaction.user.id}
             added_count = 1
@@ -580,6 +597,7 @@ class MusicCog(commands.Cog):
                     track_list_for_queue.append(track)
                     added_count += 1
             except Exception:
+            except Exception: # noqa
                 continue # On ignore les pistes qui ne peuvent pas être trouvées
 
         if add_to_top:
