@@ -75,25 +75,19 @@ class UtilsCog(commands.Cog, name="Utilitaires"):
         embed.set_footer(text=f"Demandé par {interaction.user.display_name}", icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="volume", description="Règle le volume du bot pour la musique ou la radio (0-100).")
+    @app_commands.command(name="volume", description="Règle le volume du bot pour la musique (0-100).")
     @app_commands.describe(niveau="Le pourcentage de volume souhaité.")
     async def volume(self, interaction: discord.Interaction, niveau: app_commands.Range[int, 0, 100]):
-        """Règle le volume du bot pour la musique (Wavelink) ou la radio (FFMPEG)."""
+        """Règle le volume du bot pour la musique (Wavelink)."""
         vc = interaction.guild.voice_client
         if not vc:
             await interaction.response.send_message("❌ Le bot n'est connecté à aucun salon vocal.", ephemeral=True)
             return
         
-        # Cas 1: Le lecteur est un lecteur Wavelink (pour la musique)
-        if hasattr(vc, 'set_volume'): # Vérifie si c'est un wavelink.Player
+        # Le lecteur est un lecteur Wavelink (pour la musique)
+        if hasattr(vc, 'set_volume') and isinstance(vc, discord.VoiceProtocol): # Vérifie si c'est un wavelink.Player
             await vc.set_volume(niveau)
             await interaction.response.send_message(f"🔊 Volume de la musique réglé à **{niveau}%**.")
-        
-        # Cas 2: Le lecteur est un lecteur FFMPEG (pour la radio)
-        elif vc.source and isinstance(vc.source, discord.FFmpegPCMAudio):
-            vc.source.volume = niveau / 100
-            await interaction.response.send_message(f"🔊 Volume de la radio réglé à **{niveau}%**.")
-        
         else:
             await interaction.response.send_message("🤔 Aucune lecture en cours pour ajuster le volume.", ephemeral=True)
 

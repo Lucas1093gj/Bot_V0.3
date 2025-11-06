@@ -14,7 +14,7 @@ class HelpSelect(discord.ui.Select):
         options = [
             discord.SelectOption(label="Accueil", description="Retour à la page d'accueil de l'aide.", emoji="🏠"),
             discord.SelectOption(label="DiscordMaker", description="Commandes pour construire et gérer le serveur.", emoji="⚙️"),
-            discord.SelectOption(label="Musique & Radio", description="Commandes pour le lecteur musical et la radio.", emoji="🎵"),
+            discord.SelectOption(label="Musique", description="Commandes pour le lecteur musical.", emoji="🎵"),
             discord.SelectOption(label="Modération", description="Outils pour les modérateurs.", emoji="🛡️"),
             discord.SelectOption(label="Tickets", description="Système de support pour contacter le staff.", emoji="🎟️"),
             discord.SelectOption(label="Utilitaires & Fun", description="Commandes utiles et amusantes pour tous.", emoji="🎉"),
@@ -44,16 +44,15 @@ class HelpSelect(discord.ui.Select):
             embed.add_field(name="`/discordmaker restore [fichier]`", value="**(Owner)** Restaure la structure du serveur depuis un fichier de sauvegarde `.json`.", inline=False)
             embed.add_field(name="`/discordmaker post-roles [salon]`", value="Poste le message interactif pour que les membres s'attribuent des rôles.", inline=False)
 
-        elif category == "Musique & Radio":
-            embed.title = "🎵 Aide - Musique & Radio"
-            embed.description = "Commandes pour animer vos salons vocaux."
+        elif category == "Musique":
+            embed.title = "🎵 Aide - Musique"
+            embed.description = "Commandes pour animer vos salons vocaux avec de la musique."
             embed.add_field(name="`/musique play [recherche]`", value="Joue une musique ou playlist (YouTube, Spotify).", inline=False)
             embed.add_field(name="`/musique playnext [recherche]`", value="Ajoute une musique en haut de la file d'attente.", inline=False)
             embed.add_field(name="`/musique queue`", value="Affiche la file d'attente.", inline=False)
             embed.add_field(name="`/musique loop [mode]`", value="Répète la piste (`track`), la file d'attente (`queue`) ou désactive (`off`).", inline=False)
             embed.add_field(name="`/shuffle`", value="Mélange la file d'attente.", inline=False)
             embed.add_field(name="`/musique clear`", value="Vide la file d'attente.", inline=False)
-            embed.add_field(name="`/radio [station]`", value="Joue une station de radio en direct (ex: NRJ, Fun Radio).", inline=False)
             embed.add_field(name="`/volume [0-100]`", value="Règle le volume du bot.", inline=False)
 
         elif category == "Modération":
@@ -97,8 +96,8 @@ class HelpSelect(discord.ui.Select):
         embed.add_field(
             name="Catégories Disponibles",
             value="""
-            ⚙️ **DiscordMaker** : Créez un serveur de A à Z.
-            🎵 **Musique & Radio** : Animez vos salons vocaux.
+            ⚙️ **DiscordMaker** : Créez un serveur de A à Z. # noqa: E501
+            🎵 **Musique** : Animez vos salons vocaux.
             🛡️ **Modération** : Gardez votre communauté saine.
             🎟️ **Tickets** : Contactez le staff en privé.
             🎉 **Utilitaires & Fun** : Commandes diverses pour tous.

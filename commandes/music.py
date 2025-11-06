@@ -9,10 +9,6 @@ import re
 from datetime import timedelta
 
 # --- Constantes ---
-FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn',
-}
 STATE_BACKUP_DIR = "music_state_backups"
 
 # --- Structures de données pour la sauvegarde ---
