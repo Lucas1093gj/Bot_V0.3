@@ -24,10 +24,11 @@ class HelpSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         # On utilise la valeur sélectionnée pour créer le bon embed
-        embed = await self.create_help_embed(self.values[0])
+        embed = await self.create_help_embed(self.values[0], interaction.user.id)
+        await interaction.response.edit_message(embed=embed)
 
     async def create_help_embed(self, category: str, user_id: int) -> discord.Embed:
-        """Crée un embed d'aide basé sur la catégoresu bot
+        """Crée un embed d'aide basé sur la catégorie."""
         creator_id = int(os.getenv("CREATOR_ID")) if os.getenv("CREATOR_ID") else None
         is_creator = user_id == creator_id
 
@@ -44,8 +45,8 @@ class HelpSelect(discord.ui.Select):
             embed.add_field(name="`/discordmaker start`", value="Lance la construction du serveur avec la configuration définie.", inline=False)
             embed.add_field(name="`/discordmaker reset`", value="Nettoie uniquement les rôles et salons créés par le bot.", inline=False)
             if is_creator:
-                embed.add_field(name="`/discordmaker full-reset`", value="**(Owner)** Réinitialise **totalement** le serveur (une sauvegarde est envoyée en DM).", inline=False)
-            dk`oi_c
+                embed.add_field(name="`/discordmaker full-reset`", value="**(Owner)** Réinitialise **totalement** le serveur (une sauvegarde est envoyée en DM).", inline=False) # noqa
+
         elif category == "Musique":
             embed.title = "🎵 Aide - Musique"
             embed.description = "Commandes pour animer vos salons vocaux avec de la musique."
@@ -53,9 +54,9 @@ class HelpSelect(discord.ui.Select):
             embed.add_field(name="`/musique playnext [recherche]`", value="Ajoute une musique en haut de la file d'attente.", inline=False)
             embed.add_field(name="`/musique queue`", value="Affiche la file d'attente.", inline=False)
             embed.add_field(name="`/musique loop [mode]`", value="Répète la piste (`track`), la file d'attente (`queue`) ou désactive (`off`).", inline=False)
-            embed.add_field(name="`/shuffle`", value="Mélange la file d'attente.", inline=False)
+            embed.add_field(name="`/musique shuffle`", value="Mélange la file d'attente.", inline=False)
             embed.add_field(name="`/musique clear`", value="Vide la file d'attente.", inline=False)
-            embed.add_field(name="`/volume [0-100]`", value="Règle le volume du bot.", inline=False)
+            embed.add_field(name="`/musique seek [temps]`", value="Avance la lecture à un moment précis (ex: `1m30s`).", inline=False)
 
         elif category == "Modération":
             embed.title = "🛡️ Aide - Modération"
@@ -125,4 +126,5 @@ class HelpCog(commands.Cog, name="Help"):
         await interaction.response.send_message(embed=initial_embed, view=view, ephemeral=True)
 
 
+async def setup(bot: commands.Bot):
     await bot.add_cog(HelpCog(bot))

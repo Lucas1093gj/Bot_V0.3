@@ -101,6 +101,17 @@ async def setup_hook():
 async def on_ready():
     print(f"Connecté en tant que {bot.user}")
 
+    # --- Notification de redémarrage au créateur ---
+    if CREATOR_ID:
+        try:
+            creator = await bot.fetch_user(int(CREATOR_ID))
+            if creator:
+                embed = discord.Embed(title="✅ Bot en Ligne", description=f"Le bot `{bot.user.name}` a démarré/redémarré avec succès.", color=discord.Color.green(), timestamp=datetime.datetime.now())
+                await creator.send(embed=embed)
+                print(f"[Startup] Notification de redémarrage envoyée à {creator.name}.")
+        except (discord.NotFound, discord.Forbidden, ValueError) as e:
+            print(f"[ERREUR] Impossible d'envoyer la notification de redémarrage au créateur (ID: {CREATOR_ID}). Erreur: {e}")
+
     # --- Ré-enregistrement des vues persistantes ---
     print("[Startup] Ré-enregistrement des vues persistantes...")
     # Vue pour la vérification et les rôles de DiscordMaker
