@@ -1,8 +1,0 @@
-{
-    "roles": [
-        "Owner"
-    ],
-    "channel_categories": [],
-    "cleanup_policy": "keep",
-    "verification_system": "enabled"
-}
