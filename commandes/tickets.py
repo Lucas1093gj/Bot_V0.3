@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 import re
+import aiosqlite
 from db_manager import get_db_connection
 import asyncio
 
