@@ -16,3 +16,4 @@ __pycache__/
 # Dossier des sauvegardes de serveur
 guild_backups/
 music_state_backups/
+guild_configs/
