@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
+import re
 from db_manager import get_db_connection
 import asyncio
 
@@ -34,40 +35,40 @@ class TicketsCog(commands.Cog, name="Tickets"):
         # Ré-enregistrer la vue persistante au démarrage
         self.bot.add_view(CloseTicketView())
 
-    @app_commands.command(name="ticket", description="Ouvre un ticket pour contacter le staff en privé.")
+    @app_commands.command(name="ticket", description="Crée un salon privé pour contacter le staff.")
     @app_commands.describe(sujet="La raison pour laquelle vous ouvrez un ticket.")
     async def ticket(self, interaction: discord.Interaction, sujet: str):
         await interaction.response.defer(ephemeral=True)
 
-        record = None
+        ticket_category_id = None
         async with get_db_connection() as conn:
             conn.row_factory = aiosqlite.Row
             async with conn.execute("SELECT ticket_category_id FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
                 record = await cursor.fetchone()
+                if record:
+                    ticket_category_id = record['ticket_category_id']
 
         ticket_category = None
-        if record and record['ticket_category_id']:
-            ticket_category = interaction.guild.get_channel(record['ticket_category_id'])
+        if ticket_category_id:
+            ticket_category = interaction.guild.get_channel(ticket_category_id)
 
         # Si la catégorie n'est pas trouvée dans la DB ou a été supprimée de Discord
         if not ticket_category:
             try:
-                # Permissions pour la nouvelle catégorie : privée par défaut
                 overwrites = {
                     interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False),
                     interaction.guild.me: discord.PermissionOverwrite(view_channel=True)
                 }
                 ticket_category = await interaction.guild.create_category(
                     "Tickets",
-                    overwrites=overwrites,
-                    reason="Création automatique de la catégorie pour les tickets"
+                    overwrites=overwrites, reason="Création auto de la catégorie pour les tickets"
                 )
                 # Sauvegarder l'ID de la nouvelle catégorie dans la base de données
-                async with get_db_connection() as conn_save:
-                    await conn_save.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, ticket_category.id))
-                    await conn_save.commit()
+                async with get_db_connection() as conn:
+                    await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, ticket_category.id))
+                    await conn.commit()
             except discord.Forbidden:
-                await interaction.followup.send("❌ Je n'ai pas la permission de créer une catégorie. Veuillez me donner la permission 'Gérer les salons' ou créer manuellement une catégorie 'Tickets' et la configurer avec `/discordmaker setup`.", ephemeral=True)
+                await interaction.followup.send("❌ Je n'ai pas la permission de créer une catégorie. Un admin doit me donner la permission 'Gérer les salons' ou configurer la catégorie via `/discordmaker setup`.", ephemeral=True)
                 return
             except Exception as e:
                 await interaction.followup.send(f"❌ Une erreur est survenue lors de la création de la catégorie de tickets : {e}", ephemeral=True)
@@ -93,7 +94,9 @@ class TicketsCog(commands.Cog, name="Tickets"):
             overwrites[admin_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True, read_message_history=True)
 
         # Nettoyer le nom du salon
-        channel_name = f"ticket-{interaction.user.name.lower()}"
+        # On utilise `re.sub` pour s'assurer que le nom est valide pour un salon Discord
+        sanitized_user_name = re.sub(r'[^a-zA-Z0-9_-]', '', interaction.user.name.lower())
+        channel_name = f"ticket-{sanitized_user_name}"
         
         try:
             ticket_channel = await ticket_category.create_text_channel(
