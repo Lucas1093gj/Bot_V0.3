@@ -5,6 +5,7 @@ import json
 import asyncio
 import os
 import time
+import aiosqlite
 # --- Configuration principale du module ---
 from db_manager import get_db_connection
 # --- Constantes de configuration ---
@@ -388,6 +389,8 @@ class PageButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         """Change la page de la vue de configuration."""
+        await interaction.response.defer() # Accuser réception de l'interaction immédiatement
+
         view: ConfigView = self.view
         view.current_page = self.next_page
         view.update_view()
@@ -417,7 +420,7 @@ class PageButton(discord.ui.Button):
             embed.add_field(name="Salon des Logs", value=f"Configuré : {log_channel_status}", inline=True)
             embed.add_field(name="Catégorie des Tickets", value=f"Configurée : {ticket_category_status}", inline=True)
 
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.edit_original_response(embed=embed, view=view)
 
 # --- Classe principale du Cog ---
 class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
@@ -504,7 +507,6 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             role_creation_order = sorted(
                 config.get("roles", []),
                 key=lambda r: list(ROLE_DATA.keys()).index(r) if r in ROLE_DATA else -1,
-                reverse=True
             )
 
             if config.get("roles"):
@@ -539,12 +541,18 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 admin_role = created_roles.get("Admin") or discord.utils.get(guild.roles, name="Admin")
                 mod_role = created_roles.get("Modérateur") or discord.utils.get(guild.roles, name="Modérateur")
 
-                for category_name in config["channel_categories"]:
+                # Trier les catégories pour les créer dans le bon ordre
+                category_creation_order = sorted(
+                    config["channel_categories"],
+                    key=lambda c: list(CHANNEL_STRUCTURE.keys()).index(c) if c in CHANNEL_STRUCTURE else -1
+                )
+
+                for category_name in category_creation_order:
                     structure = CHANNEL_STRUCTURE.get(category_name)
                     if not structure:
                         continue
 
-                    # Définition des permissions de base pour la catégorie
+                    # Définition des permissions de base pour la catégorie (overwrites)
                     cat_overwrites = {guild.me: discord.PermissionOverwrite(view_channel=True)}
                     if structure.get("staff_only"):
                         cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False)
@@ -556,7 +564,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     
                     # Cas spécial pour la catégorie ACCUEIL
                     if "ACCUEIL" in category_name:
-                        cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
+                        cat_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False, create_public_threads=False, create_private_threads=False)
 
                     # Création de la catégorie
                     try:
@@ -576,9 +584,9 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         chan_overwrites = cat_overwrites.copy() # Hérite des permissions de la catégorie
                         # Permissions spécifiques au salon
                         if "annonces" in channel_name and verified_role:
-                            chan_overwrites[verified_role] = discord.PermissionOverwrite(send_messages=False)
+                            chan_overwrites[verified_role] = discord.PermissionOverwrite(send_messages=False, create_public_threads=False, create_private_threads=False)
                         if "vérification" in channel_name: # Visible par tous, mais personne ne peut écrire
-                            chan_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
+                            chan_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False, create_public_threads=False, create_private_threads=False)
                         
                         try:
                             new_channel = await guild.create_text_channel(channel_name, category=category, overwrites=chan_overwrites, reason="DiscordMaker Setup")
@@ -881,7 +889,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
             description="Utilisez le menu ci-dessous pour sélectionner les rôles que vous souhaitez obtenir (notifications, jeux, etc.).\nVous pouvez en sélectionner plusieurs.",
             color=discord.Color.gold()
         )
-        await target_channel.send(embed=embed, view=RoleMenuView(final_assignable_roles, self.bot))
+        await target_channel.send(embed=embed, view=RoleMenuView(final_assignable_roles, self.bot)) # noqa
         await interaction.followup.send(f"✅ Le message de sélection de rôles a été envoyé dans {target_channel.mention}.", ephemeral=True)
 
     @setup.error

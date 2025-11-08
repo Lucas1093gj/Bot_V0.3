@@ -122,7 +122,7 @@ async def on_ready():
         
         assignable_roles = [role for role in dm_config.get("roles", []) if role in SELF_ASSIGNABLE_ROLES] # noqa
         if assignable_roles:
-            bot.add_view(RoleMenuView(assignable_roles))
+            bot.add_view(RoleMenuView(assignable_roles, bot))
 
     # La vue MusicControls est déjà persistante et ajoutée dans le cog music.
     # La ré-ajouter ici peut causer des doublons de listeners.
