@@ -17,3 +17,5 @@ __pycache__/
 guild_backups/
 music_state_backups/
 guild_configs/
+web/
+app.py
