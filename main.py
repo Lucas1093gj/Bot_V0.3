@@ -106,8 +106,18 @@ async def on_ready():
         try:
             creator = await bot.fetch_user(int(CREATOR_ID))
             if creator:
-                message_de_test = f"✅ Le bot `{bot.user.name}` a démarré avec succès 1234 à {discord.utils.format_dt(datetime.datetime.now(), style='T')}. La connexion et les messages privés fonctionnent."
-                await creator.send(message_de_test)
+                embed = discord.Embed(
+                    title="📈 Démarrage du Bot",
+                    description=f"Le bot **{bot.user.name}** est maintenant en ligne et opérationnel.",
+                    color=discord.Color.green(),
+                    timestamp=datetime.datetime.now()
+                )
+                if bot.user.avatar:
+                    embed.set_thumbnail(url=bot.user.avatar.url)
+                embed.add_field(name="Latence API", value=f"{bot.latency * 1000:.2f} ms", inline=True)
+                embed.add_field(name="Serveurs", value=f"{len(bot.guilds)}", inline=True)
+                embed.set_footer(text="Connexion et messages privés fonctionnels.")
+                await creator.send(embed=embed)
                 print(f"[Startup] Notification de redémarrage envoyée à {creator.name}.")
         except (discord.NotFound, discord.Forbidden, ValueError) as e:
             print(f"[ERREUR] Impossible d'envoyer la notification de redémarrage au créateur (ID: {CREATOR_ID}). Erreur: {e}")
