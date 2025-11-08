@@ -106,17 +106,25 @@ async def on_ready():
         try:
             creator = await bot.fetch_user(int(CREATOR_ID))
             if creator:
+                # Compter les cogs chargés avec succès
+                loaded_cogs_count = len(bot.cogs)
+                total_cogs = len([f for f in os.listdir('./commandes') if f.endswith('.py')])
+
                 embed = discord.Embed(
-                    title="📈 Démarrage du Bot",
-                    description=f"Le bot **{bot.user.name}** est maintenant en ligne et opérationnel.",
-                    color=discord.Color.green(),
+                    title="✅ Démarrage Réussi",
+                    description=f"Le bot **{bot.user.name}** est en ligne et pleinement fonctionnel.",
+                    color=0x57F287, # Vert Discord
                     timestamp=datetime.datetime.now()
                 )
                 if bot.user.avatar:
                     embed.set_thumbnail(url=bot.user.avatar.url)
-                embed.add_field(name="Latence API", value=f"{bot.latency * 1000:.2f} ms", inline=True)
-                embed.add_field(name="Serveurs", value=f"{len(bot.guilds)}", inline=True)
-                embed.set_footer(text="Connexion et messages privés fonctionnels.")
+                
+                embed.add_field(name="📊 Statistiques", value=f"**Serveurs**: {len(bot.guilds)}\n**Latence**: {bot.latency * 1000:.2f} ms", inline=True)
+                embed.add_field(name="⚙️ Modules", value=f"**Cogs**: {loaded_cogs_count}/{total_cogs}\n**Commandes**: {len(bot.tree.get_commands())}", inline=True)
+                
+                node_status = "🟢 Connecté" if wavelink.Pool.get_node().status == wavelink.NodeStatus.CONNECTED else "🔴 Déconnecté"
+                embed.add_field(name="🎵 Musique (Lavalink)", value=f"**Statut**: {node_status}", inline=True)
+                embed.set_footer(text=f"Version de discord.py : {discord.__version__}")
                 await creator.send(embed=embed)
                 print(f"[Startup] Notification de redémarrage envoyée à {creator.name}.")
         except (discord.NotFound, discord.Forbidden, ValueError) as e:
