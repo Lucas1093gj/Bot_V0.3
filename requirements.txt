@@ -5,3 +5,5 @@ spotipy
 aiosqlite
 yt-dlp
 PyNaCl
+Flask
+requests
