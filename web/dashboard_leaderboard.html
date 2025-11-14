@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('leaderboard_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block content %}
+    <h1>🏆 {{ _('leaderboard_page_h1') % {'server_name': server.name} }}</h1>
+    <p class="text-muted">{{ _('leaderboard_page_subtitle') }}</p>
+    <a href="{{ url_for('dashboard.server_home', server_id=server.id) }}">{{ _('leaderboard_back_to_dashboard') }}</a>
+    <hr>
+
+    {% if leaderboard %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 5%;">#</th>
+                        <th scope="col" style="width: 50%;">{{ _('leaderboard_table_header_member') }}</th>
+                        <th scope="col" class="text-center" style="width: 20%;">{{ _('leaderboard_table_header_level') }}</th>
+                        <th scope="col" class="text-end" style="width: 25%;">{{ _('leaderboard_table_header_total_xp') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in leaderboard %}
+                    <tr>
+                        <th scope="row" class="fw-bold fs-5">{{ user.rank }}</th>
+                        <td>
+                            <img src="{{ user.avatar_url }}" width="40" height="40" style="border-radius: 50%; margin-right: 12px;">
+                            <span>{{ user.name }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary rounded-pill fs-6">{{ user.level }}</span>
+                        </td>
+                        <td class="text-end fw-light">{{ "{:,}".format(user.xp).replace(",", " ") }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">{{ _('leaderboard_no_data') }}</div>
+    {% endif %}
+
+{% endblock %}

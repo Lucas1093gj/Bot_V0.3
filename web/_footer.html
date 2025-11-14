@@ -1,0 +1,26 @@
+<style>
+    .footer {
+        background-color: var(--background-color-darker);
+        text-align: center;
+        padding: 2rem 0;
+        margin-top: 40px;
+        font-size: 0.9rem;
+        color: var(--text-muted-color);
+        border-top: 1px solid var(--border-color);
+    }
+</style>
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-links">
+            <a href="{{ url_for('public.home') }}">{{ _('footer_home') }}</a>
+            <a href="https://discord.gg/cYQ2SJuX" target="_blank">{{ _('footer_support_discord') }}</a>
+            <a href="{{ url_for('public.commands_page') }}">{{ _('footer_commands') }}</a>
+            <a href="{{ url_for('public.status_page') }}">{{ _('footer_status') }}</a>
+            <a href="{{ url_for('public.privacy_policy_page') }}">{{ _('footer_privacy') }}</a> |
+            <a href="{{ url_for('public.terms_of_service_page') }}">{{ _('footer_tos') }}</a>
+        </div>
+        <div class="footer-copyright">
+            © {{ current_year }} FunBot - {{ _('footer_copyright') }}
+        </div>
+    </div>
+</footer>

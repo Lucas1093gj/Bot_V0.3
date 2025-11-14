@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('settings_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block content %}
+    <h1>⚙️ {{ _('settings_page_h1') }}</h1>
+    <p class="text-muted">{{ (_('settings_page_subtitle') % {'server_name': server.name}) | safe }}</p>
+
+    <form method="POST">
+        <!-- Carte pour les Niveaux -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h2>🏆 {{ _('settings_section_levels_title') }}</h2>
+            </div>
+            <div class="settings-card-body">
+                <div class="form-group d-flex justify-content-between align-items-center">
+                    <label for="leveling_enabled">{{ _('settings_levels_enable_label') }}</label>
+                    <label class="switch">
+                        <input type="checkbox" id="leveling_enabled" name="leveling_enabled" {% if settings and settings.leveling_enabled %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="xp_rate">{{ _('settings_levels_xp_rate_label') }}</label>
+                    <input type="text" class="form-control" id="xp_rate" name="xp_rate" value="{{ settings.xp_rate if settings else '15-25' }}" pattern="\d+-\d+" title="{{ _('settings_levels_xp_rate_title') }}">
+                    <small class="form-text text-muted">{{ _('settings_levels_xp_rate_desc') }}</small>
+                </div>
+                <div class="form-group">
+                    <label for="xp_cooldown">{{ _('settings_levels_cooldown_label') }}</label>
+                    <input type="number" class="form-control" id="xp_cooldown" name="xp_cooldown" value="{{ settings.xp_cooldown if settings else 60 }}" min="0">
+                    <small class="form-text text-muted">{{ _('settings_levels_cooldown_desc') }}</small>
+                </div>
+                <div class="form-group">
+                    <label>{{ _('settings_levels_blacklist_label') }}</label>
+                    <div class="checkbox-list-container">
+                        {% for channel in text_channels %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="blacklisted_channels" value="{{ channel.id }}" id="channel-{{ channel.id }}"
+                                       {% if settings and channel.id|string in settings.leveling_blacklisted_channels.split(',') %}checked{% endif %}>
+                                <label class="form-check-label" for="channel-{{ channel.id }}">#{{ channel.name }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <small class="form-text text-muted">{{ _('settings_levels_blacklist_desc') }}</small>
+                </div>
+                <div class="form-group">
+                    <label>{{ _('settings_levels_reward_roles_label') }}</label>
+                    <div class="p-3 rounded" style="background-color: var(--background-color);">
+                        <p class="text-muted">{{ _('settings_levels_no_rewards') }}</p>
+                        <button class="btn btn-secondary btn-sm" disabled>{{ _('settings_levels_add_reward_button') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte pour la Modération -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h2>🛡️ {{ _('settings_section_moderation_title') }}</h2>
+            </div>
+            <div class="settings-card-body">
+                <div class="form-group">
+                    <label for="mod_log_channel_id">{{ _('settings_mod_log_channel_label') }}</label>
+                    <select class="form-select" id="mod_log_channel_id" name="mod_log_channel_id">
+                        <option value="">{{ _('settings_option_disabled') }}</option>
+                        {% for channel in text_channels %}
+                            <option value="{{ channel.id }}" {% if settings and settings.mod_log_channel_id == channel.id|int %}selected{% endif %}>
+                                #{{ channel.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">{{ _('settings_mod_log_channel_desc') }}</small>
+                </div>
+                <div class="form-group">
+                    <label for="ticket_category_id">{{ _('settings_mod_ticket_category_label') }}</label>
+                    <select class="form-select" id="ticket_category_id" name="ticket_category_id">
+                        <option value="">{{ _('settings_option_disabled_auto_create') }}</option>
+                        {% for category in category_channels %}
+                            <option value="{{ category.id }}" {% if settings and settings.ticket_category_id == category.id|int %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">{{ _('settings_mod_ticket_category_desc') }}</small>
+                </div>
+                <div class="form-group">
+                    <label for="auto_role_id">{{ _('settings_mod_autorole_label') }}</label>
+                    <select class="form-select" id="auto_role_id" name="auto_role_id">
+                        <option value="">{{ _('settings_option_disabled') }}</option>
+                        {% for role in all_roles %}
+                            {% if not role.managed and role.name != '@everyone' %}
+                            <option value="{{ role.id }}" {% if settings and settings.autorole_id == role.id|int %}selected{% endif %}>{{ role.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">{{ _('settings_mod_autorole_desc') }}</small>
+                </div>
+                <div class="form-group">
+                    <label>{{ _('settings_mod_word_filter_label') }}</label>
+                    <textarea class="form-control" rows="3" placeholder="{{ _('settings_mod_word_filter_placeholder') }}" disabled></textarea>
+                    <small class="form-text text-muted">{{ _('settings_mod_word_filter_desc') }}</small>
+                </div>
+                 <div class="form-group d-flex justify-content-between align-items-center">
+                    <label for="antispam_invites_enabled">{{ _('settings_mod_antispam_label') }}</label>
+                    <label class="switch">
+                        <input type="checkbox" id="antispam_invites_enabled" name="antispam_invites_enabled" {% if settings and settings.antispam_invites_enabled %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte pour la Bienvenue -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h2>👋 {{ _('settings_section_welcome_title') }}</h2>
+            </div>
+            <div class="settings-card-body">
+                <div class="form-group d-flex justify-content-between align-items-center">
+                    <label for="welcome_enabled">{{ _('settings_welcome_enable_label') }}</label>
+                    <label class="switch">
+                        <input type="checkbox" id="welcome_enabled" name="welcome_enabled" {% if settings and settings.welcome_enabled %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="welcome_channel_id">{{ _('settings_welcome_channel_label') }}</label>
+                    <select class="form-select" id="welcome_channel_id" name="welcome_channel_id">
+                        <option value="">{{ _('settings_welcome_channel_placeholder') }}</option>
+                        {% for channel in text_channels %}
+                            <option value="{{ channel.id }}" {% if settings and settings.welcome_channel_id == channel.id|int %}selected{% endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="welcome_message">{{ _('settings_welcome_message_label') }}</label>
+                    <textarea class="form-control" id="welcome_message" name="welcome_message" rows="3" placeholder="{{ _('settings_welcome_message_placeholder') }}">{{ settings.welcome_message if settings and settings.welcome_message else 'Bienvenue {user.mention} sur {server.name} !' }}</textarea>
+                    <small class="form-text text-muted">{{ _('settings_welcome_message_desc') }}</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">{{ _('settings_save_button') }}</button>
+        </div>
+    </form>
+
+{% endblock %}

@@ -46,7 +46,7 @@ class HelpSelect(discord.ui.Select):
             embed.add_field(name="`/discordmaker reset`", value="Nettoie uniquement les rôles et salons créés par le bot.", inline=False)
             if is_creator:
                 embed.add_field(name="`/discordmaker full-reset`", value="**(Owner)** Réinitialise **totalement** le serveur (une sauvegarde est envoyée en DM).", inline=False) # noqa
-
+            embed.add_field(name="`/discordmaker post-roles`", value="Poste un message avec un menu déroulant pour que les membres puissent s'auto-attribuer des rôles.", inline=False)
         elif category == "Musique":
             embed.title = "🎵 Aide - Musique"
             embed.description = "Commandes pour animer vos salons vocaux avec de la musique."

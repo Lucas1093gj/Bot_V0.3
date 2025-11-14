@@ -12,6 +12,7 @@ from db_manager import get_db_connection
 CONFIG_DIR = "guild_configs"
 BACKUP_DIR = "guild_backups"
 
+# Cette structure de données définit les propriétés de chaque rôle que le bot peut créer.
 # Données des rôles (permissions et couleurs). L'ordre définit la hiérarchie (du plus haut au plus bas).
 ROLE_DATA = {
     "Owner": {"permissions": discord.Permissions(administrator=True), "color": discord.Color.from_rgb(255, 85, 85)},
@@ -34,6 +35,7 @@ ROLE_DATA = {
     "Muted": {"permissions": discord.Permissions.none(), "color": discord.Color.dark_grey()},
 }
 
+# Définit le plan du serveur : quelles catégories et quels salons créer.
 # Structure des salons
 CHANNEL_STRUCTURE = {
     "╭───┤ ACCUEIL ├───╮": {
@@ -72,6 +74,7 @@ CHANNEL_STRUCTURE = {
     },
 }
 
+# Liste des rôles que les membres peuvent s'attribuer eux-mêmes via la commande /post-roles.
 # Rôles que les membres peuvent s'auto-attribuer
 SELF_ASSIGNABLE_ROLES = [
     "Notif Annonces", 
@@ -86,27 +89,27 @@ SELF_ASSIGNABLE_ROLES = [
 
 # --- Fonctions utilitaires pour la configuration ---
 def get_config_path(guild_id: int) -> str:
-    """Construit le chemin vers le fichier de config d'un serveur."""
+    """Génère le chemin complet vers le fichier de configuration JSON d'un serveur."""
     if not os.path.exists(CONFIG_DIR):
         os.makedirs(CONFIG_DIR)
     return os.path.join(CONFIG_DIR, f"{guild_id}.json")
 
 def load_config(guild_id: int) -> dict:
-    """Charge la configuration d'un serveur depuis son fichier JSON."""
+    """Charge la configuration d'un serveur. Si aucun fichier n'existe, retourne une configuration par défaut."""
     path = get_config_path(guild_id)
     if not os.path.exists(path):
-        # Retourne une config par défaut si le fichier n'existe pas
+        # Crée une configuration vide si le fichier n'existe pas encore.
         return {"roles": [], "channel_categories": [], "cleanup_policy": "keep", "verification_system": "disabled"}
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 def save_config(guild_id: int, config: dict):
-    """Sauvegarde la configuration d'un serveur dans son fichier JSON."""
+    """Enregistre la configuration d'un serveur dans un fichier JSON."""
     with open(get_config_path(guild_id), 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
 async def create_server_backup(guild: discord.Guild) -> str | None:
-    """Crée une sauvegarde JSON de la structure du serveur (rôles et salons)."""
+    """Crée un fichier de sauvegarde JSON contenant la structure complète des rôles et salons du serveur."""
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
 
@@ -118,7 +121,7 @@ async def create_server_backup(guild: discord.Guild) -> str | None:
         "channels": []
     }
 
-    # Sauvegarde des rôles
+    # Sauvegarde de tous les rôles, en respectant leur ordre hiérarchique.
     for role in sorted(guild.roles, key=lambda r: r.position, reverse=True):
         if role.is_default(): continue
         backup_data["roles"].append({
@@ -130,14 +133,13 @@ async def create_server_backup(guild: discord.Guild) -> str | None:
             "mentionable": role.mentionable
         })
 
-    # Sauvegarde des salons et catégories
+    # Sauvegarde des catégories et des salons, en respectant leur position.
     for channel in sorted(guild.channels, key=lambda c: c.position):
-        # On ignore les threads, on ne veut que les vrais salons
+        # On ignore les threads pour ne sauvegarder que les salons principaux.
         if isinstance(channel, discord.Thread): continue
 
         overwrites = {}
-        # Convertir les cibles d'overwrite en un format stockable (nom + type)
-        # au lieu de l'ID, pour rendre la restauration plus robuste entre serveurs.
+        # On convertit les cibles des permissions (rôles/membres) par leur nom plutôt que leur ID.
         # L'ID ne serait valide que sur le serveur d'origine.
         for target, perms in channel.overwrites.items():
             target_name = target.name if isinstance(target, discord.Role) else str(target)
@@ -159,14 +161,13 @@ async def create_server_backup(guild: discord.Guild) -> str | None:
 
 # --- Vues (UI) pour la vérification ---
 class VerificationView(discord.ui.View):
-    """Bouton persistant permettant aux membres de se vérifier."""
+    """Définit le bouton de vérification persistant. `timeout=None` le rend permanent."""
     def __init__(self):
-        # On rend la vue persistante en ne spécifiant pas de timeout.
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Cliquez ici pour vérifier", style=discord.ButtonStyle.success, emoji="✅", custom_id="verification_button_persistent")
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Callback du bouton de vérification."""
+        """Cette fonction est appelée lorsqu'un utilisateur clique sur le bouton de vérification."""
         # On récupère le rôle dynamiquement au moment du clic
         verified_role = discord.utils.get(interaction.guild.roles, name="Vérifié")
 
@@ -188,14 +189,14 @@ class VerificationView(discord.ui.View):
 
 # --- Vues (UI) pour la sélection de rôles ---
 class RoleMenuView(discord.ui.View):
-    """Menu déroulant persistant pour que les membres choisissent leurs rôles."""
+    """Définit la vue (le conteneur) pour le menu déroulant de sélection de rôles."""
     def __init__(self, assignable_roles: list[str], bot_instance):
         super().__init__(timeout=None)
-        # On passe la liste des rôles au Select pour qu'il sache quoi afficher
+        # On ajoute le menu déroulant (Select) à cette vue.
         self.add_item(RoleMenuSelect(assignable_roles, bot_instance))
 
 class RoleMenuSelect(discord.ui.Select):
-    """Menu de sélection pour les rôles de notification."""
+    """Définit le menu déroulant lui-même, avec ses options."""
     def __init__(self, assignable_roles: list[str], bot_instance): # noqa
         self.bot = bot_instance
         options = []
@@ -218,15 +219,15 @@ class RoleMenuSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        """Met à jour les rôles de l'utilisateur en fonction de sa sélection."""
+        """Cette fonction est appelée quand l'utilisateur valide sa sélection dans le menu."""
         member = interaction.user
 
         # Recharger la configuration pour obtenir les rôles assignables actuels
-        # Cela rend la vue plus robuste si la config change pendant que le bot tourne
+        # rend la vue plus robuste si la configuration change pendant que le bot est en ligne.
         config = load_config(interaction.guild.id)
         server_assignable_roles = [role for role in config.get("roles", []) if role in SELF_ASSIGNABLE_ROLES]
 
-        # Mettre à jour les options du select au cas où elles auraient changé
+        # On s'assure que les options du menu correspondent toujours à la configuration actuelle.
         self.options = [opt for opt in self.options if opt.label in server_assignable_roles]
         self.max_values = len(self.options)
         
@@ -236,6 +237,7 @@ class RoleMenuSelect(discord.ui.Select):
         # Récupérer les objets Role correspondants aux noms
         assignable_roles_obj = {role.name: role for role in interaction.guild.roles if role.name in possible_roles}
         
+        # On calcule les rôles à ajouter et à retirer en comparant la sélection de l'utilisateur à ses rôles actuels.
         roles_to_add = [assignable_roles_obj[role_name] for role_name in self.values if role_name in assignable_roles_obj and assignable_roles_obj[role_name] not in member.roles]
         roles_to_remove = [role for name, role in assignable_roles_obj.items() if name not in self.values and role in member.roles]
 
@@ -250,7 +252,7 @@ class RoleMenuSelect(discord.ui.Select):
 
 # --- Vues (UI) pour la configuration ---
 class RoleSelect(discord.ui.Select):
-    """Menu de sélection pour choisir les rôles à créer."""
+    """Un menu déroulant pour que l'admin choisisse les rôles à inclure dans la configuration."""
     def __init__(self, current_roles: list):
         options = [
             discord.SelectOption(label=role, description=f"Activer/Désactiver le rôle {role}", default=(role in current_roles))
@@ -259,14 +261,14 @@ class RoleSelect(discord.ui.Select):
         super().__init__(placeholder="Choisissez les rôles à créer...", min_values=0, max_values=len(options), options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        """Sauvegarde les rôles sélectionnés dans la configuration."""
+        """Sauvegarde la sélection de rôles dans le fichier de configuration du serveur."""
         config = load_config(interaction.guild_id)
         config["roles"] = self.values
         save_config(interaction.guild_id, config) # noqa
         await interaction.response.send_message(f"✅ Rôles configurés : `{', '.join(self.values) or 'Aucun'}`", ephemeral=True)
 
 class ChannelSelect(discord.ui.Select):
-    """Menu de sélection pour choisir les catégories de salons à créer."""
+    """Un menu déroulant pour que l'admin choisisse les catégories de salons à créer."""
     def __init__(self, current_categories: list):
         options = [
             discord.SelectOption(label=cat, description=f"Inclure la catégorie '{cat}'", default=(cat in current_categories))
@@ -275,14 +277,14 @@ class ChannelSelect(discord.ui.Select):
         super().__init__(placeholder="Choisissez les catégories de salons à créer...", min_values=0, max_values=len(options), options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        """Sauvegarde les catégories sélectionnées dans la configuration."""
+        """Sauvegarde la sélection de catégories dans le fichier de configuration."""
         config = load_config(interaction.guild_id)
         config["channel_categories"] = self.values
         save_config(interaction.guild_id, config) # noqa
         await interaction.response.send_message(f"✅ Catégories configurées : `{', '.join(self.values) or 'Aucune'}`", ephemeral=True)
 
 class CleanupSelect(discord.ui.Select):
-    """Menu de sélection pour la politique de nettoyage avant création."""
+    """Permet à l'admin de choisir ce qu'il faut faire avant de construire le serveur (ne rien faire, nettoyer, etc.)."""
     def __init__(self, current_policy: str):
         options = [
             discord.SelectOption(label="Conserver", value="keep", description="Ne supprime rien avant la création (recommandé).", default=(current_policy == "keep")),
@@ -292,14 +294,14 @@ class CleanupSelect(discord.ui.Select):
         super().__init__(placeholder="Action avant la création...", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        """Sauvegarde la politique de nettoyage dans la configuration."""
+        """Sauvegarde la politique de nettoyage choisie."""
         config = load_config(interaction.guild_id)
         config["cleanup_policy"] = self.values[0]
         save_config(interaction.guild_id, config) # noqa
         await interaction.response.send_message(f"✅ Politique de nettoyage définie sur : `{self.values[0]}`", ephemeral=True)
 
 class VerificationSelect(discord.ui.Select):
-    """Menu de sélection pour activer ou désactiver le système de vérification."""
+    """Permet à l'admin d'activer ou de désactiver le système de vérification par bouton."""
     def __init__(self, current_status: str):
         options = [
             discord.SelectOption(label="Activé", value="enabled", description="Met en place un salon de vérification.", default=(current_status == "enabled")),
@@ -308,14 +310,14 @@ class VerificationSelect(discord.ui.Select):
         super().__init__(placeholder="Système de vérification...", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        """Sauvegarde le statut du système de vérification."""
+        """Sauvegarde le choix concernant le système de vérification."""
         config = load_config(interaction.guild_id)
         config["verification_system"] = self.values[0]
         save_config(interaction.guild_id, config) # noqa
         await interaction.response.send_message(f"✅ Système de vérification : `{self.values[0]}`", ephemeral=True)
 
 class ModLogChannelSelect(discord.ui.ChannelSelect):
-    """Menu de sélection pour le salon des logs de modération."""
+    """Un menu déroulant spécialisé pour ne montrer que les salons textuels, pour les logs."""
     def __init__(self, current_channel_id: int | None):
         super().__init__(
             placeholder="Choisissez un salon pour les logs de modération...",
@@ -328,7 +330,6 @@ class ModLogChannelSelect(discord.ui.ChannelSelect):
     async def callback(self, interaction: discord.Interaction):
         channel_id = int(self.values[0].id) if self.values else None
         async with get_db_connection() as conn:
-            # Pas besoin de row_factory pour un simple INSERT/REPLACE
             await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (interaction.guild.id, channel_id))
             await conn.commit()
 
@@ -336,7 +337,7 @@ class ModLogChannelSelect(discord.ui.ChannelSelect):
         await interaction.response.send_message(message, ephemeral=True)
 
 class TicketCategorySelect(discord.ui.ChannelSelect):
-    """Menu de sélection pour la catégorie des tickets."""
+    """Un menu déroulant spécialisé pour ne montrer que les catégories, pour les tickets."""
     def __init__(self):
         super().__init__(
             placeholder="Choisissez une catégorie pour les tickets...",
@@ -349,7 +350,6 @@ class TicketCategorySelect(discord.ui.ChannelSelect):
     async def callback(self, interaction: discord.Interaction):
         category_id = int(self.values[0].id) if self.values else None
         async with get_db_connection() as conn:
-            # Pas besoin de row_factory pour un simple INSERT/REPLACE
             await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, ticket_category_id) VALUES (?, ?)", (interaction.guild.id, category_id))
             await conn.commit()
 
@@ -357,15 +357,15 @@ class TicketCategorySelect(discord.ui.ChannelSelect):
         await interaction.response.send_message(message, ephemeral=True)
 
 class ConfigView(discord.ui.View):
-    """Vue principale regroupant tous les menus de configuration."""
+    """La vue principale qui gère la pagination entre les différentes pages de configuration."""
     def __init__(self, guild_id: int):
-        super().__init__(timeout=300) # Augmentation du timeout
+        super().__init__(timeout=300) # La vue expire après 5 minutes d'inactivité.
         self.guild_id = guild_id
         self.current_page = 1
         self.update_view()
 
     def update_view(self):
-        """Met à jour les composants de la vue en fonction de la page actuelle."""
+        """Efface et reconstruit les éléments de la vue en fonction de la page affichée."""
         self.clear_items()
         config = load_config(self.guild_id)
 
@@ -388,14 +388,14 @@ class PageButton(discord.ui.Button):
         self.next_page = next_page
 
     async def callback(self, interaction: discord.Interaction):
-        """Change la page de la vue de configuration."""
+        """Change la page de la vue de configuration et met à jour le message."""
         await interaction.response.defer() # Accuser réception de l'interaction immédiatement
 
         view: ConfigView = self.view
         view.current_page = self.next_page
         view.update_view()
 
-        # Créer le nouvel embed pour la page actuelle
+        # On crée le nouvel embed pour la page demandée.
         config = load_config(interaction.guild.id)
         embed = discord.Embed(
             title=f"🛠️ Configuration du Serveur (Page {view.current_page}/2)",
@@ -432,7 +432,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @maker_group.command(name="setup", description="Ouvre le panneau pour configurer la structure du serveur.")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup(self, interaction: discord.Interaction):
-        """Affiche le panneau de configuration du serveur."""
+        """Affiche le panneau de configuration interactif pour le serveur."""
         embed = discord.Embed(
             title="🛠️ Configuration du Serveur (Page 1/2)",
             description="Bienvenue dans le panneau de configuration. Configurez les options principales de la structure du serveur.\n"
@@ -444,10 +444,10 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @maker_group.command(name="start", description="Construit le serveur avec la configuration actuelle.")
     @app_commands.checks.has_permissions(administrator=True)
     async def start(self, interaction: discord.Interaction):
-        """Construit le serveur en se basant sur la configuration sauvegardée."""
+        """Lance la construction (ou reconstruction) du serveur en se basant sur la configuration sauvegardée."""
         await interaction.response.defer(ephemeral=True)
 
-        # Acquérir le verrou pour empêcher le redémarrage
+        # On utilise le verrou pour s'assurer que cette opération critique ne soit pas interrompue ou lancée en double.
         async with self.bot.critical_operation_lock:
             config = load_config(interaction.guild_id)
             guild = interaction.guild
@@ -458,7 +458,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
 
             await interaction.followup.send("🚀 Lancement de la construction du serveur... Cela peut prendre un moment.", ephemeral=True)
 
-            # --- Nettoyage (si configuré) ---
+            # Étape 1 : Nettoyage du serveur (si l'option a été choisie dans le setup).
             cleanup_policy = config.get("cleanup_policy", "keep")
             if cleanup_policy == "smart_delete":
                 await self._cleanup_guild(guild)
@@ -499,7 +499,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         await interaction.user.send(embed=embed_backup, file=discord.File(backup_file_path))
                     except discord.Forbidden:
                         await interaction.followup.send("⚠️ Impossible de vous envoyer la sauvegarde en DM. Vos messages privés sont probablement fermés.", ephemeral=True)
-                await self._full_cleanup_guild(guild)
+                await self._full_cleanup_guild(guild) # Lancement de la suppression.
 
             # --- Création des rôles ---
             created_roles = {}
@@ -523,9 +523,8 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     hoist = role_name in ["Owner", "Admin", "Modérateur", "Animateur"]
                     try:
                         role = await guild.create_role(name=role_name, permissions=permissions, color=color, reason="DiscordMaker Setup", hoist=hoist) # noqa
-                        # --- MARQUAGE DANS LA DB ---
+                        # On enregistre l'ID du rôle créé dans la base de données pour pouvoir le retrouver plus tard (pour le /reset).
                         async with get_db_connection() as conn:
-                            # Pas besoin de row_factory pour un simple INSERT
                             await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, role.id, 'role'))
                             await conn.commit()
                         created_roles[role_name] = role
@@ -569,9 +568,8 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     # Création de la catégorie
                     try:
                         category = await guild.create_category(category_name, overwrites=cat_overwrites, reason="DiscordMaker Setup")
-                        # --- MARQUAGE DANS LA DB ---
+                        # On marque également la catégorie dans la DB.
                         async with get_db_connection() as conn:
-                            # Pas besoin de row_factory pour un simple INSERT
                             await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, category.id, 'category'))
                             await conn.commit()
                         await asyncio.sleep(0.5)
@@ -585,21 +583,23 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                         # Permissions spécifiques au salon
                         if "annonces" in channel_name and verified_role:
                             chan_overwrites[verified_role] = discord.PermissionOverwrite(send_messages=False, create_public_threads=False, create_private_threads=False)
-                        if "vérification" in channel_name: # Visible par tous, mais personne ne peut écrire
+                        if "vérification" in channel_name:
+                            # Visible par tous, mais personne ne peut écrire...
                             chan_overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, send_messages=False, create_public_threads=False, create_private_threads=False)
+                            # ... SAUF le bot lui-même, pour qu'il puisse poster le message de bienvenue et de vérification.
+                            chan_overwrites[guild.me] = discord.PermissionOverwrite(view_channel=True, send_messages=True, embed_links=True)
+
                         
                         try:
                             new_channel = await guild.create_text_channel(channel_name, category=category, overwrites=chan_overwrites, reason="DiscordMaker Setup")
-                            # --- MARQUAGE DANS LA DB ---
+                            # Et on marque le salon.
                             async with get_db_connection() as conn:
-                                # Pas besoin de row_factory pour un simple INSERT
                                 await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
                                 await conn.commit()
                             await asyncio.sleep(0.5)
-                            # Logique intelligente : si on crée le salon de logs, on le configure automatiquement
+                            # Si on crée le salon de logs, on le configure automatiquement dans les paramètres du serveur.
                             if "logs-modération" in channel_name:
                                 async with get_db_connection() as conn:
-                                    # Pas besoin de row_factory pour un simple INSERT/REPLACE
                                     await conn.execute("INSERT OR REPLACE INTO guild_settings (guild_id, mod_log_channel_id) VALUES (?, ?)", (guild.id, new_channel.id))
                                     await conn.commit()
                         except discord.Forbidden:
@@ -612,9 +612,8 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                             if "AFK" in channel_name and verified_role:
                                 voice_overwrites[verified_role] = discord.PermissionOverwrite(speak=False)
                             new_channel = await guild.create_voice_channel(channel_name, category=category, overwrites=voice_overwrites, reason="DiscordMaker Setup")
-                            # --- MARQUAGE DANS LA DB ---
+                            # Et on marque le salon vocal.
                             async with get_db_connection() as conn:
-                                # Pas besoin de row_factory pour un simple INSERT
                                 await conn.execute("INSERT OR IGNORE INTO created_elements (guild_id, element_id, element_type) VALUES (?, ?, ?)", (guild.id, new_channel.id, 'channel'))
                                 await conn.commit()
                             await asyncio.sleep(0.5)
@@ -635,7 +634,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     embed.set_footer(text="Si vous rencontrez un problème, contactez un membre du staff.")
                     await verification_channel.send(embed=embed, view=VerificationView())
             
-            # Envoyer la confirmation finale en DM pour s'assurer que l'utilisateur la reçoit
+            # On envoie la confirmation finale en DM pour être sûr que l'utilisateur la voie, même si le salon de commande a été supprimé.
             try:
                 await interaction.user.send(f"✅ La construction du serveur **{guild.name}** est terminée !")
             except discord.Forbidden:
@@ -645,7 +644,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @maker_group.command(name="reset", description="Nettoie les rôles et salons créés par le bot.")
     @app_commands.checks.has_permissions(administrator=True)
     async def reset(self, interaction: discord.Interaction):
-        """Affiche une confirmation pour réinitialiser le serveur."""
+        """Supprime uniquement les éléments (rôles, salons) que le bot a créés, en se basant sur la base de données."""
         class ConfirmView(discord.ui.View):
             def __init__(self, cog_instance):
                 super().__init__(timeout=60)
@@ -680,7 +679,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
 
     @maker_group.command(name="full-reset", description="[DANGER] Réinitialise totalement le serveur (Owner uniquement).")
     async def full_reset(self, interaction: discord.Interaction):
-        """Lance la suppression totale du serveur avec double confirmation."""
+        """Supprime TOUS les rôles et salons du serveur, avec une double confirmation pour la sécurité."""
         guild = interaction.guild
         if interaction.user.id != guild.owner_id:
             await interaction.response.send_message("❌ Seul le propriétaire du serveur peut exécuter cette commande.", ephemeral=True)
@@ -742,7 +741,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
         backup_file="Le fichier de sauvegarde (.json) à utiliser.",
     )
     async def restore(self, interaction: discord.Interaction, backup_file: discord.Attachment):
-        """Restaure un serveur depuis un fichier .json. L'option de suppression totale est dans la confirmation."""
+        """Restaure la structure d'un serveur à partir d'un fichier de sauvegarde .json."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         guild = interaction.guild
         if interaction.user.id != guild.owner_id:
@@ -756,14 +755,14 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
         try:
             backup_content = await backup_file.read()
             backup_data = json.loads(backup_content)
-            # Validation rapide de la structure du fichier
+            # On vérifie que le fichier JSON a bien la structure attendue.
             if "roles" not in backup_data or "channels" not in backup_data:
                 raise ValueError("Structure de sauvegarde invalide.")
         except (json.JSONDecodeError, ValueError) as e:
             await interaction.followup.send(f"❌ Fichier de sauvegarde invalide ou corrompu : {e}", ephemeral=True)
             return
 
-        # --- VALIDATION DE SÉCURITÉ ---
+        # On limite le nombre d'éléments à créer pour éviter les abus ou les fichiers malveillants (rate-limits Discord).
         # Limiter le nombre total d'éléments pour prévenir les abus
         MAX_ROLES = 250 # Limite de Discord est 250, on peut être un peu plus strict
         MAX_CHANNELS = 500 # Limite de Discord est 500
@@ -788,7 +787,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 self.update_reset_button()
 
             def update_reset_button(self):
-                """Met à jour le label et le style du bouton de réinitialisation."""
+                """Met à jour l'apparence du bouton 'Full Reset' pour montrer s'il est activé ou non."""
                 if self.full_reset:
                     self.toggle_reset.label = "Full Reset: Activé"
                     self.toggle_reset.style = discord.ButtonStyle.success
@@ -797,7 +796,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     self.toggle_reset.style = discord.ButtonStyle.secondary
 
             def create_embed(self) -> discord.Embed:
-                """Crée l'embed de confirmation en fonction de l'état actuel."""
+                """Génère l'embed de confirmation en fonction de si le 'Full Reset' est activé."""
                 reset_warning = "\n\n**ATTENTION : L'option `full_reset` est activée.** TOUS les rôles et salons actuels seront supprimés avant la restauration." if self.full_reset else ""
                 return discord.Embed(
                     title="🚨 CONFIRMATION DE RESTAURATION 🚨",
@@ -824,7 +823,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 except discord.HTTPException:
                     pass
 
-                # Acquérir le verrou pour empêcher le redémarrage
+                # On verrouille l'opération pour s'assurer qu'elle aille jusqu'au bout sans interruption.
                 async with self.bot_instance.critical_operation_lock:
                     try:
                         if self.full_reset:
@@ -851,7 +850,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
 
             @discord.ui.button(label="Full Reset: Désactivé", style=discord.ButtonStyle.secondary, row=1)
             async def toggle_reset(self, view_interaction: discord.Interaction, button: discord.ui.Button):
-                """Bascule l'option de suppression totale."""
+                """Active ou désactive l'option de suppression totale avant la restauration."""
                 self.full_reset = not self.full_reset
                 self.update_reset_button()
                 await view_interaction.response.edit_message(embed=self.create_embed(), view=self)
@@ -863,15 +862,15 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @app_commands.describe(channel="Le salon où envoyer le message. Par défaut, le salon actuel.") # noqa: E501
     @app_commands.checks.has_permissions(administrator=True)
     async def post_roles(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
-        """Envoie un message interactif pour l'auto-attribution de rôles."""
+        """Poste un message avec un menu déroulant pour que les membres puissent s'auto-attribuer des rôles."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         target_channel = channel or interaction.channel
         
-        # Charger la configuration du serveur
+        # On charge la configuration du serveur pour savoir quels rôles proposer.
         config = load_config(interaction.guild_id)
         chosen_roles = config.get("roles", [])
 
-        # 2. Filtrer pour ne garder que les rôles auto-attribuables qui ont été choisis
+        # On ne garde que les rôles qui sont à la fois dans la config ET dans la liste des rôles auto-attribuables.
         final_assignable_roles = [role for role in chosen_roles if role in SELF_ASSIGNABLE_ROLES]
 
         if not final_assignable_roles:
@@ -899,7 +898,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @full_reset.error
     @post_roles.error
     async def maker_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        """Gestionnaire d'erreurs centralisé pour les commandes du groupe."""
+        """Un gestionnaire d'erreurs centralisé pour toutes les commandes de ce cog."""
         if isinstance(error, app_commands.MissingPermissions):
             await interaction.response.send_message("❌ Vous devez être administrateur pour utiliser cette commande.", ephemeral=True)
         else:
@@ -918,7 +917,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     await interaction.user.send(f"Une erreur est survenue sur le serveur **{interaction.guild.name}** et je n'ai pas pu répondre dans le salon (il a probablement été supprimé).\nErreur: `{error}`")
 
     async def _cleanup_guild(self, guild: discord.Guild):
-        """Nettoie UNIQUEMENT les rôles et salons créés par le bot, en se basant sur la DB."""
+        """Supprime uniquement les rôles et salons créés par le bot, en se basant sur les IDs stockés dans la base de données."""
         async with get_db_connection() as conn:
             conn.row_factory = aiosqlite.Row
             async with conn.execute("SELECT element_id, element_type FROM created_elements WHERE guild_id = ?", (guild.id,)) as cursor:
@@ -965,13 +964,12 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                     except discord.HTTPException as e:
                         print(f"Erreur HTTP lors de la suppression du rôle {role_id}: {e}")
 
-            # Vider la table pour ce serveur
-            # Pas besoin de row_factory pour un simple DELETE
+            # Une fois tout supprimé, on vide la table des éléments créés pour ce serveur.
             await conn.execute("DELETE FROM created_elements WHERE guild_id = ?", (guild.id,))
             await conn.commit()
 
     async def _full_cleanup_guild(self, guild: discord.Guild):
-        """Supprime TOUS les rôles et salons que le bot peut gérer."""
+        """Supprime TOUS les rôles et salons que le bot a la permission de supprimer."""
         # Suppression des salons
         for channel in guild.channels:
             try:
@@ -991,7 +989,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 print(f"Impossible de supprimer le rôle {role.name} ({role.id})")
 
     async def _restore_from_backup(self, guild: discord.Guild, backup_data: dict):
-        """Restaure les rôles et salons depuis les données de sauvegarde."""
+        """Contient la logique de restauration d'un serveur à partir des données d'un fichier de sauvegarde."""
         # --- Phase 1: Création des rôles ---
         created_roles = {}
         for role_data in reversed(backup_data.get("roles", [])): # Créer du plus haut au plus bas
@@ -1061,7 +1059,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 target = None
                 if perms_data["type"] == "role":
                     target = created_roles.get(target_name) or discord.utils.get(guild.roles, name=target_name)
-                # La restauration des permissions pour un membre spécifique n'est pas gérée ici pour la simplicité
+                # La restauration des permissions pour un membre spécifique n'est pas gérée pour rester simple et robuste.
 
                 if target:
                     overwrites[target] = discord.PermissionOverwrite.from_pair(

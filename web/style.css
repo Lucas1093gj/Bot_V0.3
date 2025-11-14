@@ -1,0 +1,452 @@
+/* --- style.css --- */
+/* Utilisation d'une police plus moderne comme Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+
+:root {
+    /* Thème Sombre (par défaut) */
+    --background-color: #23272a;
+    --card-background: #2c2f33; /* --background-color-lighter */
+    --text-color: #ffffff;
+    --text-muted: #96989d;
+    --text-heading: #ffffff;
+    --blurple: #5865F2;
+    --blurple-hover: #4f5bda;
+    --green: #57F287;
+    --border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.light-mode {
+    /* Thème Clair */
+    --background-color: #f8f9fa;
+    --card-background: #ffffff; /* --background-color-lighter */
+    --text-color: #212529;
+    --text-muted: #6c757d;
+    --text-heading: #000000;
+    --border-color: rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--background-color); /* Applique la couleur de fond principale */
+    color: var(--text-color);
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Conteneur principal de la page */
+.landing-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Section Hero (principale, en haut) */
+.hero-section {
+    text-align: center;
+    padding: 80px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.hero-section .bot-logo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin-bottom: 25px;
+    border: 4px solid var(--blurple);
+    box-shadow: 0 0 20px rgba(88, 101, 242, 0.5);
+}
+
+.hero-section h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin: 0 0 15px 0;
+    color: var(--text-heading);
+    line-height: 1.2;
+}
+
+.hero-section .subtitle {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin-bottom: 40px;
+}
+
+/* Bouton de connexion principal */
+.login-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--blurple);
+    color: white;
+    border: 2px solid var(--blurple);
+    border-radius: 8px;
+    padding: 16px 32px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(88, 101, 242, 0.3);
+}
+
+.login-button:hover {
+    background-color: var(--blurple-hover);
+    border-color: var(--blurple-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4);
+}
+
+.login-button svg {
+    width: 24px;
+    height: 24px;
+    margin-right: 12px;
+}
+
+
+/* Section des fonctionnalités */
+.features-section {
+    padding: 60px 0;
+    text-align: center;
+}
+
+.features-section h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 50px;
+    color: var(--text-heading);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+.feature-card {
+    background-color: var(--card-background);
+    padding: 30px;
+    border-radius: 8px;
+    text-align: left;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+.feature-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 10px 0;
+    color: var(--text-heading);
+}
+
+.feature-card p {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Styles pour la page des serveurs (après connexion) */
+.dashboard-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 40px;
+    background-color: var(--card-background);
+    border-radius: 8px;
+}
+
+.dashboard-container h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.server-list {
+    list-style: none;
+    padding: 0;
+}
+
+.server-list li {
+    background: #2f3136;
+    margin-bottom: 10px;
+    padding: 15px 20px;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.server-list li:hover {
+    background-color: #3a3d42;
+}
+
+.server-list a {
+    color: var(--text-color);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.dashboard-container > a {
+    display: block;
+    text-align: center;
+    margin-top: 30px;
+    color: var(--text-muted);
+}
+
+/* NOUVEAU : Pied de page (Footer) */
+.footer {
+    background-color: var(--card-background);
+    color: var(--text-muted);
+    padding: 40px 20px;
+    margin-top: 80px;
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.footer-links {
+    margin-bottom: 20px;
+}
+
+.footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    margin: 0 15px;
+    transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+    color: var(--text-color);
+}
+
+.footer-copyright {
+    font-size: 0.9rem;
+}
+
+
+/* --- Styles pour la page des commandes (Améliorés) --- */
+.search-container {
+    position: relative;
+    margin: 40px auto 60px auto;
+    max-width: 700px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    z-index: 1; /* Pour être sûr qu'il est au-dessus de l'input */
+}
+
+#commandSearch {
+    width: 100%;
+    padding: 15px 20px 15px 45px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#commandSearch:focus {
+    outline: none;
+    border-color: var(--blurple);
+    box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.3);
+}
+
+/* NOUVEAU : Pour cacher les catégories qui ne correspondent pas à la recherche */
+.hidden {
+    display: none;
+}
+
+.command-category-card {
+    background-color: var(--card-background);
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 1px solid var(--border-color);
+    overflow: hidden; /* Pour que les bordures internes s'affichent correctement */
+}
+
+.command-category-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px 25px;
+    background-color: rgba(0,0,0,0.1);
+}
+
+.command-category-header h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.command-list {
+    padding: 0; /* Retiré pour que les bordures aillent de bout en bout */
+}
+
+.command-entry {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.command-category-card .command-list .command-entry:last-child {
+    border-bottom: none;
+}
+
+.command-header {
+    display: flex;
+    flex-direction: column; /* Mettre le nom et la description l'un sur l'autre */
+    gap: 5px; /* Espace entre le nom et la description */
+    margin-bottom: 10px; /* Espace avant les paramètres */
+}
+
+.command-name {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--green);
+    word-break: break-all; /* Pour les noms de commandes longs */
+}
+
+.command-description {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.command-params ul {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 15px 0 0 0;
+    border-left: 2px solid var(--border-color);
+}
+
+.command-params li {
+    margin-bottom: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.param-optional {
+    font-size: 0.8rem;
+    color: #ffcc4d; /* Jaune/Orange */
+    margin-left: 5px;
+}
+
+.param-description {
+    margin-left: 5px;
+    font-style: italic;
+    color: #b9bbbe; /* Un gris plus clair */
+}
+
+/* --- Styles pour le Header (déplacés depuis index.html) --- */
+.main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: color-mix(in srgb, var(--background-color-darker) 80%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1000;
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px;
+    padding: 0 20px;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-heading);
+    font-weight: bold;
+    font-size: 1.2em;
+}
+.header-logo img {
+    height: 32px;
+    width: 32px;
+    border-radius: 50%;
+}
+
+/* --- Styles pour le menu mobile (déplacés depuis index.html) --- */
+.mobile-nav-toggle {
+    display: none; /* Caché par défaut sur grand écran */
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-heading);
+    padding: 5px;
+}
+
+.mobile-nav-menu {
+    display: none; /* Caché par défaut */
+    position: absolute;
+    top: 60px; /* Juste en dessous du header */
+    left: 0;
+    right: 0;
+    background-color: var(--background-color-darker);
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 20px;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mobile-nav-menu.show {
+    display: flex; /* Affiché quand la classe 'show' est ajoutée */
+}
+
+/* Media Query pour afficher le menu mobile sur les petits écrans */
+@media (max-width: 768px) {
+    .desktop-nav { display: none; }
+    .mobile-nav-toggle { display: block; }
+}
+
+/* --- Styles pour les pages de contenu (Politique, CGU) --- */
+.main-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 40px;
+    background-color: var(--card-background);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.main-container h1 {
+    color: var(--text-heading);
+    border-bottom: 2px solid var(--blurple);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.main-container h2 {
+    color: var(--text-heading);
+    margin-top: 30px;
+}
+
+.main-container p, .main-container li {
+    line-height: 1.6;
+}
+}

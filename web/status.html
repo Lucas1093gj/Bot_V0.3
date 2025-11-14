@@ -1,0 +1,90 @@
+{% extends "base_public.html" %}
+
+{% block title %}{{ _('status_page_title') }}{% endblock %}
+
+{% block content %}
+<div class="landing-container">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl md:text-5xl font-bold mb-2">{{ _('status_page_h1') }}</h1>
+        <p class="text-lg text-gray-300">{{ _('status_page_subtitle') % {'bot_name': bot_name} }}</p>
+    </div>
+
+    <!-- Statut global -->
+    <div class="max-w-4xl mx-auto mb-10 p-4 rounded-lg {% if overall_status == 'ok' %}bg-green-500/20 border-green-500{% else %}bg-red-500/20 border-red-500{% endif %} border">
+        <div class="flex items-center">
+            {% if overall_status == 'ok' %}
+            <svg class="w-6 h-6 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="font-semibold">{{ _('status_page_overall_ok') }}</span>
+            {% else %}
+            <svg class="w-6 h-6 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="font-semibold">{{ _('status_page_overall_degraded') }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <p class="text-center text-gray-400 text-sm mb-12">{{ _('status_page_last_checked') }} {{ last_checked }}</p>
+
+    <!-- Grille des services -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-12">
+        <!-- Bot Discord -->
+        <div class="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">{{ _('status_card_bot_discord_title') }}</h2>
+                <span class="px-3 py-1 text-sm rounded-full {% if bot_status.status == 'ok' %}bg-green-500/20 text-green-300{% else %}bg-red-500/20 text-red-300{% endif %}">
+                    {{ bot_status.text }}
+                </span>
+            </div>
+            <div class="text-gray-300">
+                Latence: <span class="font-mono">{{ '%.2f'|format(bot_latency) if bot_latency != -1 else 'N/A' }} ms</span>
+            </div>
+        </div>
+
+        <!-- Base de données -->
+        <div class="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">{{ _('status_card_database_title') }}</h2>
+                <span class="px-3 py-1 text-sm rounded-full {% if db_status.status == 'ok' %}bg-green-500/20 text-green-300{% else %}bg-red-500/20 text-red-300{% endif %}">
+                    {{ db_status.text }}
+                </span>
+            </div>
+            <div class="text-gray-300">{{ _('status_card_database_desc') }}</div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">{{ _('status_card_stats_title') }}</h2>
+                <span class="px-3 py-1 text-sm rounded-full bg-blue-500/20 text-blue-300">
+                    {{ _('status_card_stats_info') }}
+                </span>
+            </div>
+            <div class="text-gray-300">
+                <span class="text-2xl font-bold">{{ guild_count }}</span> {{ _('status_card_stats_unit') }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Noeuds Lavalink -->
+    <div class="max-w-6xl mx-auto">
+        <h2 class="text-2xl font-semibold mb-6">{{ _('status_section_lavalink_title') }}</h2>
+        <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700 space-y-4">
+            {% if lavalink_nodes %}
+                {% for node in lavalink_nodes %}
+                <div class="flex justify-between items-center p-3 bg-gray-900/50 rounded">
+                    <div>
+                        <span class="font-semibold">{{ node.identifier }}</span>
+                        {% if node.heartbeat and node.heartbeat != -1 %}
+                        <span class="text-gray-400 text-sm ml-2">({{ '%.0f'|format(node.heartbeat) }} ms)</span>
+                        {% endif %}
+                    </div>
+                    <span class="px-3 py-1 text-sm rounded-full {% if node.status == 'ok' %}bg-green-500/20 text-green-300{% else %}bg-red-500/20 text-red-300{% endif %}">
+                        {{ node.text }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-400 p-3">Aucun nœud Lavalink n'est actuellement configuré ou connecté.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

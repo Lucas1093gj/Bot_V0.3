@@ -1,0 +1,55 @@
+{% extends "base_public.html" %}
+
+{% block title %}{{ _('privacy_policy_title') }}{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <h1>{{ _('privacy_policy_h1') }}</h1>
+    <p><strong>{{ _('privacy_policy_last_updated') }}:</strong> {{ _('privacy_policy_update_date') }}</p>
+    <p><strong>{{ _('privacy_policy_developer') }}:</strong> lulucop1 (Lucas1093 sur Discord) | <strong>{{ _('privacy_policy_support') }}:</strong> <a href="https://discord.gg/zqpStqcNnP" target="_blank">{{ _('privacy_policy_support_link_text') }}</a></p>
+
+    <h2>{{ _('privacy_policy_data_collected_title') }}</h2>
+    <p>{{ _('privacy_policy_data_collected_intro') }}</p>
+    <ol>
+        <li><strong>{{ _('privacy_policy_logs_moderation_title') }}</strong>
+            <ul>
+                <li>{{ _('privacy_policy_logs_moderation_item1') }}</li>
+                <li>{{ _('privacy_policy_logs_moderation_item2') }}</li>
+            </ul>
+        </li>
+        <li><strong>{{ _('privacy_policy_profile_activity_title') }}</strong>
+            <ul>
+                <li><strong>{{ _('privacy_policy_warns_title') }}</strong> {{ _('privacy_policy_warns_desc') }}</li>
+                <li><strong>{{ _('privacy_policy_levels_title') }}</strong> {{ _('privacy_policy_levels_desc') }}</li>
+            </ul>
+        </li>
+        <li><strong>{{ _('privacy_policy_config_title') }}</strong>
+            <ul>
+                <li>{{ _('privacy_policy_config_desc') }}</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h2>{{ _('privacy_policy_data_usage_title') }}</h2>
+    <p>{{ _('privacy_policy_data_usage_intro') }}</p>
+    <ul>
+        <li>{{ _('privacy_policy_data_usage_item1') }}</li>
+        <li>{{ _('privacy_policy_data_usage_item2') }}</li>
+        <li>{{ _('privacy_policy_data_usage_item3') }}</li>
+    </ul>
+    <p>{{ _('privacy_policy_data_usage_guarantee') }}</p>
+
+    <h2>{{ _('privacy_policy_storage_deletion_title') }}</h2>
+    <p>{{ _('privacy_policy_storage_deletion_intro') }}</p>
+    
+    <h3>{{ _('privacy_policy_access_deletion_title') }}</h3>
+    <p>{{ _('privacy_policy_access_deletion_intro') }}</p>
+    <ul>
+        <li><strong>{{ _('privacy_policy_request_data_title') }}</strong> {{ _('privacy_policy_request_data_desc') }}</li>
+        <li><strong>{{ _('privacy_policy_delete_account_title') }}</strong> {{ _('privacy_policy_delete_account_desc') }}</li>
+    </ul>
+
+    <h3>{{ _('privacy_policy_security_retention_title') }}</h3>
+    <p>{{ _('privacy_policy_security_retention_desc') }}</p>
+</div>
+{% endblock %}

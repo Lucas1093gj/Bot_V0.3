@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Paramètres{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* --- NOUVEAU : Styles pour l'interrupteur de thème --- */
+    .theme-switch-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    .theme-switch {
+        display: inline-block;
+        height: 34px;
+        position: relative;
+        width: 60px;
+    }
+    .theme-switch input {
+        display: none;
+    }
+    .slider {
+        background-color: #ccc;
+        bottom: 0;
+        cursor: pointer;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+        transition: .4s;
+        border-radius: 34px;
+    }
+    .slider:before {
+        background-color: #fff;
+        bottom: 4px;
+        content: "";
+        height: 26px;
+        left: 4px;
+        position: absolute;
+        transition: .4s;
+        width: 26px;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: var(--primary-color);
+    }
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+</style>
+{% endblock %}
+
+{% block body_content %}
+<div class="container" style="padding-top: 80px;">
+    <div class="settings-card">
+        <div class="settings-card-header">
+            <h1>⚙️ {{ _('user_settings_h1') }}</h1>
+        </div>
+        <div class="settings-card-body">
+            <!-- Section pour le Thème et la Langue -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="language-select" class="form-label">Langue</label>
+                    <select id="language-select" class="form-select">
+                        <option value="fr" {% if get_locale() == 'fr' %}selected{% endif %}>Français</option>
+                        <option value="en" {% if get_locale() == 'en' %}selected{% endif %}>English</option>
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="theme-switch-wrapper">
+                        <label for="theme-switch">{{ _('user_settings_theme_label') }}</label>
+                        <label class="theme-switch" for="theme-switch">
+                            <input type="checkbox" id="theme-switch">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- NOUVEAU : Section de gestion des données -->
+            <div class="mb-4">
+                <h3>🔒 {{ _('user_settings_data_management_title') }}</h3>
+                <p class="text-muted">{{ _('user_settings_data_management_desc') }}</p>
+                
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <form action="{{ url_for('public.request_data') }}" method="POST">
+                        <button type="submit" class="btn btn-secondary">{{ _('user_settings_request_data_button') }}</button>
+                    </form>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                        {{ _('user_settings_delete_account_button') }}
+                    </button>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- NOUVEAU : Section des liens utiles -->
+            <div class="mb-3">
+                <h3>🔗 {{ _('user_settings_useful_links_title') }}</h3>
+                <ul>
+                    <li><a href="{{ url_for('public.privacy_policy_page') }}">{{ _('user_settings_privacy_policy_link') }}</a></li>
+                    <li><a href="{{ url_for('public.terms_of_service_page') }}">{{ _('user_settings_tos_link') }}</a></li>
+                </ul>
+            </div>
+
+            <a href="{{ url_for('public.home') }}" class="btn btn-primary mt-4">{{ _('user_settings_back_to_home_button') }}</a>
+        </div>
+    </div>
+</div>
+
+<!-- NOUVEAU : Modale de confirmation pour la suppression du compte -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="deleteAccountModalLabel">⚠️ {{ _('user_settings_modal_delete_title') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <p>{{ _('user_settings_modal_delete_body1') }}</p>
+        <ul>
+            <li>{{ _('user_settings_modal_delete_item1') }}</li>
+            <li>{{ _('user_settings_modal_delete_item2') }}</li>
+        </ul>
+        <p class="text-muted" style="font-size: 0.9em;">{{ _('user_settings_modal_delete_note') }}</p>
+        <p class="text-danger"><strong>{{ _('user_settings_modal_delete_warning_strong') }}</strong> {{ _('user_settings_modal_delete_warning_text') }}</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('modal_cancel') }}</button>
+        <form action="{{ url_for('public.delete_account') }}" method="POST">
+            <button type="submit" class="btn btn-danger">{{ _('user_settings_modal_delete_confirm_button') }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NOUVEAU : Script pour gérer le changement de thème -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const themeSwitch = document.getElementById('theme-switch');
+        const languageSelect = document.getElementById('language-select');
+        const currentTheme = localStorage.getItem('theme');
+
+        // Initialiser l'état de l'interrupteur
+        if (currentTheme === 'light') {
+            themeSwitch.checked = true;
+        }
+
+        // Écouter les changements sur l'interrupteur
+        themeSwitch.addEventListener('change', function(e) {
+            if (e.target.checked) {
+                document.documentElement.classList.add('light-mode');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.remove('light-mode');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        // Écouter les changements sur le sélecteur de langue
+        languageSelect.addEventListener('change', function(e) {
+            const selectedLang = e.target.value;
+            
+            fetch("{{ url_for('public.set_language') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ lang: selectedLang })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload(); // Recharger la page pour appliquer la nouvelle langue
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+#####################################################################
+#                                                                   #
+#          LISTE COMPLÈTE DES FONCTIONNALITÉS - FUNBOT V0.3          #
+#                                                                   #
+#####################################################################
+
+Ce document répertorie toutes les fonctionnalités actuellement implémentées dans le bot et son interface web.
+
+---
+
+### 🤖 FONCTIONNALITÉS DU BOT DISCORD (COMMANDES SLASH)
+
+**⚙️ DiscordMaker (Gestion de Serveur)**
+- `/dashboard` : Envoie un lien privé pour accéder au tableau de bord web.
+- `/discordmaker setup` : Ouvre un panneau de configuration privé pour définir la structure du serveur (rôles, salons, etc.).
+- `/discordmaker start` : Construit le serveur en se basant sur la configuration sauvegardée.
+- `/discordmaker reset` : Nettoie uniquement les rôles et salons créés par le bot (basé sur la base de données).
+- `/discordmaker full-reset` : [Owner uniquement] Réinitialise COMPLÈTEMENT le serveur (supprime tous les rôles et salons) après une double confirmation.
+- `/discordmaker restore` : [Owner uniquement] Restaure la structure d'un serveur à partir d'un fichier de sauvegarde `.json`.
+- `/discordmaker post-roles` : Poste un message avec un menu déroulant pour que les membres puissent s'auto-attribuer des rôles.
+
+**🎵 Musique (Wavelink)**
+- `/musique play [recherche]` : Joue une musique (YouTube) ou l'ajoute à la file d'attente.
+- `/musique playnext [recherche]` : Ajoute une musique en haut de la file d'attente.
+- `/musique seek [temps]` : Avance ou recule la lecture à un moment précis (ex: 1m30s, 90, 1:30).
+- `/musique queue` : Affiche la file d'attente.
+- `/musique clear` : Vide la file d'attente.
+- `/musique shuffle` : Mélange la file d'attente.
+- `/musique loop [mode]` : Répète la musique actuelle (track), la file d'attente (queue), ou désactive la répétition.
+- **Contrôles Interactifs Persistants** : Un message "En cours de lecture" avec des boutons (Pause/Play, Skip, Stop, Quitter, File d'attente) qui restent fonctionnels même après un redémarrage du bot.
+- **Sauvegarde d'État** : Si le bot est déconnecté, il sauvegarde la file d'attente, le volume et le mode de boucle, et propose de les restaurer à la prochaine commande `/play`.
+
+**🛡️ Modération**
+- `/clear [nombre]` : Supprime un nombre de messages dans un salon.
+- `/warn [membre] [raison]` : Avertit un membre et enregistre l'avertissement dans la base de données.
+- `/warnings [membre]` : Affiche l'historique des avertissements d'un membre.
+- `/delwarn [id]` : Supprime un avertissement spécifique via son ID.
+- `/mute [membre] [durée] [raison]` : Applique un timeout à un membre.
+- `/unmute [membre]` : Retire le timeout d'un membre.
+- `/lock [salon]` : Verrouille un salon pour que les membres ne puissent plus y envoyer de messages.
+- `/unlock [salon]` : Déverrouille un salon.
+
+**🎟️ Tickets**
+- `/ticket open [sujet]` : Crée un salon privé ("ticket") pour une discussion entre un membre et le staff.
+
+**🎉 Utilitaires & Fun**
+- `/poll [question] [options...]` : Crée un sondage simple avec des réactions.
+- `/help` : Affiche un panneau d'aide interactif.
+- `/serverinfo` : Affiche des statistiques sur le serveur.
+- `/userinfo [membre]` : Affiche des informations sur un membre.
+
+**📝 Journal d'Audit (Logger)**
+- Enregistre automatiquement les messages supprimés et modifiés dans la base de données.
+- `/getlog` : [Admin uniquement] Envoie la base de données des logs en message privé.
+
+---
+**🏆 Système de Niveaux (Leveling)**
+- Gain d'XP automatique en envoyant des messages (avec un cooldown pour éviter le spam).
+- Notification dans le salon lorsqu'un membre passe un niveau.
+- Le classement est visible via le tableau de bord web.
+
+### 🌐 FONCTIONNALITÉS DU TABLEAU DE BORD WEB
+
+**✨ Pages Publiques**
+- **Page d'Accueil** :
+  - Présentation du bot et de ses fonctionnalités.
+  - Statistiques globales (nombre de serveurs, d'utilisateurs).
+  - Journal des mises à jour (VLog) modifiable depuis le panel admin.
+  - **Interface dynamique** : Se transforme en un écran de sélection de serveur une fois l'utilisateur connecté.
+- **Page de Commandes (`/commands`)** :
+  - Liste toutes les commandes slash du bot, groupées par catégorie.
+  - Barre de recherche pour filtrer les commandes.
+- **Page de Statut (`/status`)** :
+  - Affiche en temps réel le statut du bot, de la base de données et des nœuds musicaux (Lavalink).
+  - Indique la latence du bot.
+- **Pages Légales** :
+  - `/privacy-policy` : Page de politique de confidentialité.
+  - `/terms-of-service` : Page des conditions d'utilisation.
+
+**🔒 Pages Privées (après connexion)**
+- **Sélection de Serveur** :
+  - Affiche les serveurs où l'utilisateur est administrateur et où le bot est présent.
+  - Sépare les serveurs possédés des serveurs simplement administrés.
+
+**🛠️ Dashboard par Serveur (`/dashboard/<id_serveur>`)**
+- **Accueil du Dashboard** :
+  - Statistiques clés : nombre de membres, membres en ligne, avertissements du mois.
+  - Affiche le membre le plus actif (basé sur le système de niveaux).
+  - Affiche les dernières activités de modération.
+- **Annonces** :
+  - Constructeur d'embeds avec prévisualisation en direct pour envoyer des annonces dans un salon spécifique.
+- **Rôles-Réaction** :
+  - Page existante mais fonctionnalité marquée comme "en cours de développement".
+- **Paramètres** :
+  - **Niveaux** : Section présente mais fonctionnalités marquées comme "à venir".
+  - **Modération** : Configurer le salon des logs, la catégorie des tickets, l'auto-rôle à l'arrivée.
+  - **Anti-Spam** : Activer/désactiver le blocage des invitations Discord.
+  - **Bienvenue** : Activer/désactiver les messages de bienvenue, choisir le salon et personnaliser le message.
+- **Avertissements** :
+  - Tableau complet de tous les avertissements du serveur avec détails (membre, modérateur, raison, date).
+- **Logs des Messages** :
+  - Tableau des 100 derniers messages supprimés ou modifiés, avec détails (auteur, salon, contenu avant/après).
+- **Classement (Leaderboard)** :
+  - Affiche le top 50 des membres les plus actifs avec leur niveau et leur XP.
+
+**👑 Panel d'Administration Global (`/admin`)**
+- **Accès Sécurisé** : Uniquement pour les administrateurs définis dans le fichier `.env`.
+- **Accès Intégré** : Le lien vers le panel apparaît dans le menu déroulant de l'utilisateur si celui-ci est un admin.
+- **Onglet Analytiques** :
+  - Affiche les 5 commandes les plus populaires.
+  - Affiche les 10 serveurs les plus actifs.
+  - Journal en direct des 100 dernières commandes exécutées (avec succès ou erreur).
+- **Onglet Configuration** :
+  - **Mode Maintenance** : Activer/désactiver un mode où seul les admins peuvent utiliser le bot.
+  - **Redémarrage du Bot** : Bouton pour redémarrer le processus du bot à distance.
+  - **Journal des Mises à Jour (VLog)** :
+    - Éditeur de texte pour mettre à jour le contenu affiché sur la page d'accueil.
+    - Guide d'utilisation du HTML simple (titres, listes, liens...).
+    - Modale de confirmation avec prévisualisation avant de sauvegarder.
+  - **Historique du VLog** : Affiche les 5 dernières modifications du journal, avec le nom de l'admin et la date.
+  - **Annonce Globale** : Envoyer un message privé (embed) à tous les propriétaires de serveurs où le bot est présent.
+- **Onglet Utilisateurs** :
+  - **Recherche d'Utilisateur** : Permet de trouver un utilisateur par son ID et de voir les serveurs en commun avec le bot.
+- **Navigation** : Un bouton "Quitter le panel admin" permet de revenir facilement à la sélection de serveurs.
+
+---
+
+### 🔩 ARCHITECTURE ET FONCTIONNALITÉS INTERNES
+
+- **Base de Données (SQLite)** : Utilisation d'aiosqlite pour toutes les opérations asynchrones.
+- **Structure Modulaire (Cogs)** : Le code du bot est séparé en modules logiques (musique, modération, etc.).
+- **Gestion des Erreurs** : Gestionnaires d'erreurs pour les commandes slash.
+- **Verrouillage des Opérations Critiques** : Un `asyncio.Lock` empêche les conflits lors des opérations longues comme `/discordmaker start`.
+- **Déploiement** : Le serveur web Flask est servi via `waitress` pour un environnement de production.
+- **Configuration via `.env`** : Toutes les clés et IDs sensibles sont gérés via un fichier d'environnement.

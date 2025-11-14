@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ bot_name | default('Bot Dashboard') }} - {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'light') {
+            document.documentElement.classList.add('light-mode');
+        }
+    })();
+</script>
+
+{% include '_header.html' %}
+
+<main class="landing-container" style="padding-top: 80px;">
+    {% block content %}{% endblock %}
+</main>
+
+{% include '_footer.html' %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userDropdown = document.getElementById('user-dropdown');
+        if (userMenuButton && userDropdown) {
+            userMenuButton.addEventListener('click', (event) => { event.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', (event) => { if (!userMenuButton.contains(event.target) && !userDropdown.contains(event.target)) userDropdown.classList.remove('show'); });
+        }
+        const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+        const mobileNavMenu = document.getElementById('mobile-nav-menu');
+        if (mobileNavToggle && mobileNavMenu) {
+            mobileNavToggle.addEventListener('click', (event) => { event.stopPropagation(); mobileNavMenu.classList.toggle('show'); });
+            document.addEventListener('click', () => { mobileNavMenu.classList.remove('show'); });
+        }
+    });
+</script>
+
+</body>
+</html>

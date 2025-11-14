@@ -14,7 +14,7 @@ STATE_BACKUP_DIR = "music_state_backups"
 
 # --- Structures de données pour la sauvegarde ---
 def track_to_dict(track: wavelink.Playable) -> dict:
-    """Convertit un objet wavelink.Playable en dictionnaire pour la sauvegarde."""
+    """Convertit un objet piste Wavelink en un dictionnaire simple, facile à sauvegarder en JSON."""
     return { # noqa
         "uri": track.uri,
         "title": track.title,
@@ -25,7 +25,7 @@ def track_to_dict(track: wavelink.Playable) -> dict:
 
 # --- Fonctions de gestion de la sauvegarde de la file d'attente ---
 async def _save_state(player: wavelink.Player, guild_id: int):
-    """Sauvegarde l'état du lecteur (file d'attente, volume, boucle) dans un fichier JSON."""
+    """Sauvegarde l'état actuel du lecteur (file d'attente, volume, boucle) dans un fichier JSON dédié au serveur."""
     if not os.path.exists(STATE_BACKUP_DIR):
         os.makedirs(STATE_BACKUP_DIR)
     filepath = os.path.join(STATE_BACKUP_DIR, f"{guild_id}.json")
@@ -43,7 +43,7 @@ async def _save_state(player: wavelink.Player, guild_id: int):
         json.dump(state_data, f, indent=4)
 
 def _load_state_data(guild_id: int) -> dict | None:
-    """Charge l'état de la musique d'un serveur depuis un fichier JSON, si il existe."""
+    """Charge les données de l'état sauvegardé pour un serveur, s'il en existe."""
     filepath = os.path.join(STATE_BACKUP_DIR, f"{guild_id}.json")
     if os.path.exists(filepath):
         try:
@@ -56,14 +56,14 @@ def _load_state_data(guild_id: int) -> dict | None:
     return None
 
 def _delete_state_backup(guild_id: int):
-    """Supprime le fichier de sauvegarde de la file d'attente d'un serveur."""
+    """Supprime le fichier de sauvegarde d'un serveur, généralement après restauration ou si l'utilisateur l'ignore."""
     filepath = os.path.join(STATE_BACKUP_DIR, f"{guild_id}.json")
     if os.path.exists(filepath):
         os.remove(filepath)
 
 
-# --- Vue avec les boutons de contrôle ---
 class MusicControls(discord.ui.View):
+    """Définit la vue persistante avec tous les boutons de contrôle pour la musique."""
     def __init__(self, bot: commands.Bot = None):
         super().__init__(timeout=None)
 
@@ -138,15 +138,16 @@ class MusicControls(discord.ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class RestoreQueueView(discord.ui.View): # noqa
-    def __init__(self, music_cog, interaction: discord.Interaction, query: str):
-        super().__init__(timeout=60)
+    """Vue temporaire qui demande à l'utilisateur s'il veut restaurer une ancienne file d'attente."""
+    def __init__(self, music_cog, interaction, query):
+        super().__init__(timeout=60) # noqa
         self.music_cog = music_cog
         self.interaction = interaction
         self.query = query
         self.guild_id = interaction.guild.id
 
     async def on_timeout(self):
-        """Si l'utilisateur ne répond pas, on supprime la sauvegarde et on continue normalement."""
+        """Si l'utilisateur ne répond pas à temps, on ignore la sauvegarde et on continue."""
         _delete_state_backup(self.guild_id)
         # On retire le serveur de la liste d'attente
         self.music_cog.waiting_for_restore.pop(self.guild_id, None)
@@ -155,7 +156,7 @@ class RestoreQueueView(discord.ui.View): # noqa
 
     @discord.ui.button(label="✅ Restaurer la file d'attente", style=discord.ButtonStyle.success)
     async def restore(self, interaction: discord.Interaction, button: discord.ui.Button): # noqa
-        # Sécurisation : désactiver les boutons immédiatement pour éviter les double-clics
+        """Restaure la file d'attente, le volume et la boucle depuis le fichier de sauvegarde."""
         for item in self.children:
             item.disabled = True
         await interaction.response.edit_message(view=self)
@@ -170,13 +171,13 @@ class RestoreQueueView(discord.ui.View): # noqa
             return
         
         if loaded_state_data and loaded_state_data.get("queue"):
-            self.music_cog.waiting_for_restore.pop(self.guild_id, None) # Baisser le drapeau
+            self.music_cog.waiting_for_restore.pop(self.guild_id, None) # On indique que la restauration est gérée.
             # Restaurer le volume et la boucle
             await player.set_volume(loaded_state_data.get("volume", 100))
             loop_mode_str = loaded_state_data.get("loop_mode", "normal").lower() # Utiliser lower()
             player.queue.mode = getattr(wavelink.QueueMode, loop_mode_str, wavelink.QueueMode.normal)
 
-            # Ajouter l'ancienne file d'attente
+            # On ajoute les anciennes pistes à la file d'attente.
             for track_data in loaded_state_data["queue"]:
                 try:
                     # On recherche par URI pour être précis
@@ -192,7 +193,7 @@ class RestoreQueueView(discord.ui.View): # noqa
             await self.interaction.edit_original_response(content="✅ État précédent (file d'attente, volume, boucle) restauré ! La lecture va commencer.", view=None)
         else:
             # Si la sauvegarde est vide ou corrompue, on continue normalement
-            self.music_cog.waiting_for_restore.pop(self.guild_id, None) # Baisser le drapeau
+            self.music_cog.waiting_for_restore.pop(self.guild_id, None)
             await self.interaction.edit_original_response(content="❌ Impossible de trouver la sauvegarde. Lancement d'une nouvelle file d'attente.", view=None)
             await self.music_cog._add_song_to_queue(interaction, self.query)
         
@@ -201,9 +202,10 @@ class RestoreQueueView(discord.ui.View): # noqa
 
     @discord.ui.button(label="🗑️ Ignorer", style=discord.ButtonStyle.secondary)
     async def ignore(self, interaction: discord.Interaction, button: discord.ui.Button): # noqa
+        """Ignore la sauvegarde et lance une nouvelle file d'attente."""
         await interaction.response.defer()
         _delete_state_backup(self.guild_id)
-        self.music_cog.waiting_for_restore.pop(self.guild_id, None) # Baisser le drapeau
+        self.music_cog.waiting_for_restore.pop(self.guild_id, None)
         await self.interaction.edit_original_response(content="🗑️ Sauvegarde ignorée. Lancement d'une nouvelle file d'attente.", view=None)
         await self.music_cog._add_song_to_queue(self.interaction, self.query)
         self.stop()
@@ -211,9 +213,8 @@ class RestoreQueueView(discord.ui.View): # noqa
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Dictionnaire pour suivre les serveurs en attente de restauration
+        # Ce dictionnaire permet de savoir pour quels serveurs on attend une réponse de l'utilisateur pour la restauration.
         self.waiting_for_restore = {}
-        # Démarrer la boucle de mise à jour de l'affichage
         try:
             spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
             spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -227,27 +228,25 @@ class MusicCog(commands.Cog):
         self.update_now_playing_loop.start()
 
     def cog_unload(self):
-        """Arrête la boucle de mise à jour lorsque le cog est déchargé."""
+        """Appelé lorsque le cog est déchargé, pour arrêter proprement la boucle de mise à jour."""
         self.update_now_playing_loop.cancel()
 
     async def cog_load(self):
-        """Cette fonction est appelée lorsque le cog est chargé."""
-        # On attache la vue persistante ici pour s'assurer que le cog est chargé et que le bot est prêt
+        """Appelé lorsque le cog est chargé, on en profite pour ajouter la vue persistante des contrôles."""
         self.bot.add_view(MusicControls())
 
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload):
-        """Événement déclenché quand un nœud Lavalink est prêt."""
+        """Confirme que la connexion au serveur de musique Lavalink est établie."""
         print(f"[Wavelink] Nœud '{payload.node.identifier}' est prêt.")
 
     @commands.Cog.listener()
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload):
-        """Événement déclenché quand une nouvelle musique commence."""
+        """Lorsqu'une nouvelle musique commence, cette fonction envoie le message 'En cours de lecture'."""
         player = payload.player
         if not player:
             return
 
-        # Créer le message "En cours de lecture"
         embed = self.build_now_playing_embed(player)
         # On s'assure que l'attribut existe. S'il est déjà défini par une autre opération,
         # on ne l'écrase pas, sinon on l'initialise à None.
@@ -257,7 +256,7 @@ class MusicCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
-        """Événement déclenché quand une musique se termine."""
+        """Gère la fin d'une piste : supprime l'ancien message et lance la suivante si possible."""
         player = payload.player
         if not player:
             return
@@ -269,9 +268,7 @@ class MusicCog(commands.Cog):
             except (discord.HTTPException, AttributeError):
                 pass
 
-        # Si la file d'attente n'est pas vide, on lance la prochaine musique.
-        # Wavelink v3+ gère cela automatiquement avec la Queue, mais pour être plus robuste,
-        # on peut l'expliciter.
+        # Wavelink gère automatiquement le passage à la piste suivante, mais on peut ajouter une logique personnalisée ici.
         if not player.queue.is_empty:
             # La méthode play() va automatiquement prendre la prochaine chanson de la file d'attente
             # si aucune piste n'est fournie.
@@ -287,14 +284,14 @@ class MusicCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_wavelink_player_destroy(self, player: wavelink.Player):
-        """Sauvegarde la file d'attente lorsque le lecteur est détruit (déconnexion)."""
+        """Lorsque le lecteur est détruit (déconnexion), on sauvegarde son état."""
         if not player.queue.is_empty or player.current:
             await _save_state(player, player.guild.id)
             print(f"État de la musique sauvegardé pour le serveur {player.guild.id}")
 
     @commands.Cog.listener()
     async def on_wavelink_track_exception(self, payload: wavelink.TrackExceptionEventPayload):
-        """Événement déclenché quand une erreur survient pendant la lecture."""
+        """Gère les erreurs qui peuvent survenir pendant la lecture d'une piste (ex: vidéo supprimée)."""
         player = payload.player
         track = payload.track
         exception = payload.exception
@@ -315,7 +312,7 @@ class MusicCog(commands.Cog):
             await player.home.send(f"❌ Une erreur est survenue lors de la lecture de **{track.title if track else 'la piste'}**. Passage à la suivante si possible.")
 
     def build_now_playing_embed(self, player: wavelink.Player) -> discord.Embed:
-        """Construit l'embed dynamique 'En cours de lecture'."""
+        """Construit l'embed 'En cours de lecture' avec la barre de progression et les informations sur la piste."""
         track = player.current
         if not track:
             return discord.Embed(title="Rien n'est en cours de lecture", color=discord.Color.greyple())
@@ -354,7 +351,7 @@ class MusicCog(commands.Cog):
         return embed
 
     def _parse_seek_time(self, time_str: str) -> int | None: # noqa
-        """Convertit une chaîne de temps comme '1m30s' ou '1:30' en secondes."""
+        """Convertit une chaîne de temps flexible (ex: '1m30s', '1:30', '90') en secondes."""
         # Gère le format "HH:MM:SS" ou "MM:SS"
         if ':' in time_str:
             try:
@@ -383,7 +380,7 @@ class MusicCog(commands.Cog):
             return None
 
     def _clean_search_query(self, artist: str, title: str) -> str:
-        """Nettoie en profondeur le nom de l'artiste et le titre pour une recherche YouTube optimale."""
+        """Nettoie le nom de l'artiste et le titre pour optimiser la recherche sur YouTube."""
         # Supprimer les parenthèses, crochets et leur contenu
         title = re.sub(r'[\(\[].*?[\)\]]', '', title)
         # Supprimer les mots-clés courants et "feat."
@@ -395,9 +392,7 @@ class MusicCog(commands.Cog):
 
     @tasks.loop(seconds=20.0) # Augmentation de l'intervalle pour réduire la charge
     async def update_now_playing_loop(self):
-        """Met à jour tous les messages 'En cours de lecture' actifs."""
-        # The way to access players has changed in wavelink v3+.
-        # We now iterate through nodes and then their players.
+        """Boucle qui s'exécute en arrière-plan pour mettre à jour les messages 'En cours de lecture' et gérer l'inactivité."""
         for node in wavelink.Pool.nodes.values():
             if node.status != wavelink.NodeStatus.CONNECTED:
                 continue
@@ -410,8 +405,7 @@ class MusicCog(commands.Cog):
                     except (discord.HTTPException, AttributeError):
                         player.now_playing_message = None
                 
-                # Vérification pour déconnecter le bot s'il est inactif
-                # On ajoute une condition pour ne pas déconnecter si on attend une restauration
+                # Déconnecte le bot s'il est inactif depuis trop longtemps.
                 elif not player.playing and player.connected and player.queue.is_empty and player.guild.id not in self.waiting_for_restore: # noqa
                     # Ajout d'un délai de grâce avant la déconnexion
                     if not hasattr(player, 'inactive_since'):
@@ -433,6 +427,7 @@ class MusicCog(commands.Cog):
 
     @music_group.command(name="play", description="Joue une musique depuis YouTube/Spotify ou l'ajoute à la liste.")
     async def play(self, interaction: discord.Interaction, recherche: str):
+        """Commande principale pour jouer de la musique."""
         await interaction.response.defer(ephemeral=True)
 
         if not interaction.user.voice:
@@ -444,7 +439,7 @@ class MusicCog(commands.Cog):
 
         if not player:
             try:
-                # On ajoute le timeout ici, au bon endroit.
+                # Si le bot n'est pas connecté, on le connecte au salon vocal de l'utilisateur.
                 player: wavelink.Player = await voice_channel.connect(cls=wavelink.Player, timeout=60)
             except (discord.ClientException, asyncio.TimeoutError, wavelink.exceptions.ChannelTimeoutException):
                 await interaction.followup.send("❌ Je suis déjà connecté à un autre salon vocal.")
@@ -455,12 +450,11 @@ class MusicCog(commands.Cog):
                 return
             await player.move_to(voice_channel)
 
-        # Définir le salon de l'interaction comme salon "maison" du lecteur
+        # On garde en mémoire le salon où la commande a été lancée pour y envoyer les messages.
         player.home = interaction.channel
-        # Définir le volume par défaut
         await player.set_volume(30)
 
-        # Vérifier s'il y a une sauvegarde de file d'attente
+        # S'il y a une sauvegarde, on demande à l'utilisateur s'il veut la restaurer.
         saved_state = _load_state_data(interaction.guild.id)
         if saved_state and saved_state.get("queue") and player.queue.is_empty and not player.playing:
             self.waiting_for_restore[interaction.guild.id] = True # Lever le drapeau d'attente
@@ -468,16 +462,14 @@ class MusicCog(commands.Cog):
             await interaction.followup.send("🔎 J'ai trouvé une file d'attente précédente pour ce serveur. Voulez-vous la restaurer avant d'ajouter votre nouvelle musique ?", view=view, ephemeral=True)
             return
 
-        # On vérifie si la file d'attente est vide pour adapter la réponse
+        # On ajoute la chanson demandée à la file d'attente.
         is_first_song = player.queue.is_empty and not player.playing
         added_count = await self._add_song_to_queue(interaction, recherche)
 
         if added_count == 0:
-            # _add_song_to_queue a déjà envoyé un message d'erreur
             return
 
-        # Si ce n'est pas la première chanson, on envoie une confirmation.
-        # Si c'est la première, on_wavelink_track_start enverra le message "En cours de lecture".
+        # Si ce n'est pas la première chanson, on envoie une confirmation. Sinon, l'événement on_track_start s'en chargera.
         if not is_first_song:
             message = f"✅ {added_count} musique(s) ajoutée(s) à la file d'attente."
             await interaction.followup.send(message, ephemeral=True)
@@ -493,7 +485,7 @@ class MusicCog(commands.Cog):
             await interaction.followup.send("❌ Le bot n'est pas connecté. Utilisez `/musique play` d'abord.", ephemeral=True)
             return
 
-        # Amélioration : si la file est vide, on traite comme un /play normal
+        # Si la file est vide, cette commande se comporte comme un /play normal.
         if player.queue.is_empty:
             await interaction.followup.send("ℹ️ La file d'attente était vide, la musique est ajoutée normalement.", ephemeral=True)
             await self._add_song_to_queue(interaction, recherche)
@@ -506,6 +498,7 @@ class MusicCog(commands.Cog):
     @music_group.command(name="seek", description="Avance ou recule la lecture à un moment précis.")
     @app_commands.describe(temps="Le moment où aller (ex: 1m30s, 90, 1:30).")
     async def seek(self, interaction: discord.Interaction, temps: str): # noqa
+        """Permet de se déplacer à un moment précis de la chanson en cours."""
         player: wavelink.Player = interaction.guild.voice_client
         if not player or not player.playing:
             return await interaction.response.send_message("❌ Aucune musique n'est en cours de lecture.", ephemeral=True)
@@ -522,7 +515,7 @@ class MusicCog(commands.Cog):
         await player.seek(seek_seconds * 1000)
 
     async def _add_song_to_queue(self, interaction: discord.Interaction, query: str, add_to_top: bool = False) -> int:
-        """Recherche une ou plusieurs chansons et les ajoute à la file d'attente. Renvoie le nombre de pistes ajoutées."""
+        """Fonction interne pour rechercher et ajouter une ou plusieurs chansons à la file d'attente. Renvoie le nombre de pistes ajoutées."""
         player: wavelink.Player = interaction.guild.voice_client
 
         # --- Traitement spécial pour Spotify ---
@@ -534,13 +527,12 @@ class MusicCog(commands.Cog):
             )
             return 0 # On arrête le traitement et on indique qu'aucune piste n'a été ajoutée.
 
-        # --- Traitement pour toutes les recherches (YouTube, Spotify converti, etc.) ---
         try:
-            # On force la recherche sur YouTube si ce n'est pas déjà un lien ou une recherche formatée
+            # On préfixe la recherche pour forcer YouTube si ce n'est pas un lien.
             if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
                 query = f"ytsearch:{query}"
 
-            # --- Stratégie de recherche avec secours ---
+            # Stratégie de recherche avec une tentative de secours si la première échoue.
             # 1. Première tentative avec la requête complète
             tracks: list[wavelink.Playable] = await wavelink.Playable.search(query) # noqa
 
@@ -584,7 +576,7 @@ class MusicCog(commands.Cog):
         return added_count
 
     async def _add_multiple_tracks(self, interaction: discord.Interaction, queries: list[str], add_to_top: bool):
-        """Ajoute une liste de pistes à la file d'attente, en arrière-plan."""
+        """Fonction interne pour ajouter une liste de pistes (typiquement depuis une playlist) à la file d'attente."""
         player: wavelink.Player = interaction.guild.voice_client
         added_count = 0
         failed_tracks = []
@@ -595,7 +587,6 @@ class MusicCog(commands.Cog):
         for query in queries:
             try:
                 await asyncio.sleep(0.2)
-                # Laisser Wavelink choisir le meilleur noeud.
                 tracks = await wavelink.Playable.search(query) # noqa
 
                 # Stratégie de secours également pour les playlists
@@ -638,6 +629,7 @@ class MusicCog(commands.Cog):
 
     @music_group.command(name="queue", description="Affiche la file d'attente actuelle")
     async def queue(self, interaction: discord.Interaction):
+        """Affiche les 10 prochaines chansons de la file d'attente."""
         player: wavelink.Player = interaction.guild.voice_client # noqa
         if not player or player.queue.is_empty:
             await interaction.response.send_message("🎶 La file d'attente est vide.", ephemeral=True)
@@ -665,6 +657,7 @@ class MusicCog(commands.Cog):
 
     @music_group.command(name="clear", description="Vide la file d'attente")
     async def clear(self, interaction: discord.Interaction): # noqa
+        """Supprime toutes les chansons de la file d'attente."""
         player: wavelink.Player = interaction.guild.voice_client
         if not player or player.queue.is_empty:
             await interaction.response.send_message("🎶 La file d'attente est déjà vide.", ephemeral=True)
@@ -674,7 +667,7 @@ class MusicCog(commands.Cog):
 
     @music_group.command(name="shuffle", description="Mélange la file d'attente.")
     async def shuffle(self, interaction: discord.Interaction): # noqa
-        """Mélange la file d'attente actuelle du serveur."""
+        """Mélange aléatoirement l'ordre des chansons dans la file d'attente."""
         player: wavelink.Player = interaction.guild.voice_client
         if not player or len(player.queue) < 2:
             await interaction.response.send_message("❌ Il n'y a pas assez de musiques dans la file d'attente pour les mélanger.", ephemeral=True)
@@ -691,6 +684,7 @@ class MusicCog(commands.Cog):
         app_commands.Choice(name="Désactivé (off)", value="off"),
     ])
     async def loop(self, interaction: discord.Interaction, mode: app_commands.Choice[str]):
+        """Définit le mode de répétition : désactivé, piste actuelle, ou toute la file d'attente."""
         player: wavelink.Player = interaction.guild.voice_client
         if not player:
             return await interaction.response.send_message("❌ Le bot n'est pas connecté.", ephemeral=True)

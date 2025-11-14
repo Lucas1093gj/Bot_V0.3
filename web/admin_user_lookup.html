@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('user_lookup_title') }}{% endblock %}
+
+{% block body_content %}
+<div class="container">
+    <div style="padding-top: 30px; padding-bottom: 30px;">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>{{ _('user_lookup_h1') }}</h1>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">{{ _('user_lookup_back_button') }}</a>
+        </div>
+        <hr>
+
+        {% if user %}
+        <div class="settings-card">
+            <div class="settings-card-body d-flex align-items-center">
+                <img src="{{ user.display_avatar.url }}" alt="{{ _('user_lookup_avatar_alt') }}" class="rounded-circle me-3" width="80" height="80">
+                <div>
+                    <h2 class="mb-0">{{ user.name }}</h2>
+                    <p class="text-muted mb-0">{{ _('user_lookup_id_label') }} {{ user.id }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-card mt-4">
+            <div class="settings-card-header">
+                <h3>{{ _('user_lookup_shared_guilds_title', count=shared_guilds|length) }}</h3>
+            </div>
+            <div class="settings-card-body">
+                <ul class="list-group list-group-flush">
+                    {% for guild in shared_guilds %}
+                    <li class="list-group-item">{{ guild.name }} ({{ _('user_lookup_id_label') }} {{ guild.id }})</li>
+                    {% else %}
+                    <li class="list-group-item">{{ _('user_lookup_no_shared_guilds') }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">{{ _('user_lookup_no_user_found') }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

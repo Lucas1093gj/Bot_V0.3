@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- La variable 'title' sera définie par chaque page enfant -->
+    <title>{% block title %}{{ _('base_default_title') }}{% endblock %}</title>
+    
+    <!-- CSS du Dashboard -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard_style.css') }}">
+    
+    <style>
+        /* --- NOUVEAU : Variables de Thème --- */
+        :root {
+            /* Thème Sombre (par défaut) - restauré avec le contraste */
+            --background-color: #23272a; /* Un peu plus clair pour le fond général */
+            --background-color-lighter: #2c2f33; /* La couleur des cartes, légèrement plus claire */
+            --background-color-darker: #1e1f22; /* La couleur la plus sombre, pour les headers etc. */
+            --text-color: #dcddde;
+            --text-muted-color: #96989d;
+            --text-heading-color: #ffffff;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-color: #5865F2; /* Blurple */
+            --primary-color-hover: #4752c4;
+        }
+
+        html.light-mode {
+            /* Thème Clair */
+            --background-color: #f8f9fa;
+            --background-color-lighter: #ffffff;
+            --background-color-darker: #e9ecef;
+            --text-color: #212529;
+            --text-muted-color: #6c757d;
+            --text-heading-color: #000000;
+            --border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        /* Style pour la liste de checkboxes */
+        .checkbox-list-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: var(--background-color-darker);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: var(--bs-border-radius);
+        }
+    </style>
+
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <!-- NOUVEAU : Script pour appliquer le thème avant le rendu de la page -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'light') {
+                document.documentElement.classList.add('light-mode');
+            }
+        })();
+    </script>
+
+    {% block body_content %}
+        <div class="dashboard-layout">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    {% if server.icon %}
+                        <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png" alt="{{ _('base_server_icon_alt') }} {{ server.name }}">
+                    {% else %}
+                        <div class="server-icon-placeholder">{{ server.name[0] }}</div>
+                    {% endif %}
+                    <h2>{{ server.name }}</h2>
+                </div>
+    
+                <ul class="sidebar-nav">
+                    {# La classe 'active' sera ajoutée si l'URL correspond #}
+                    <li><a href="{{ url_for('dashboard.server_home', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.server_home' else '' }}">🏠 {{ _('base_nav_dashboard_home') }}</a></li>
+                    <li><a href="{{ url_for('dashboard.announcement', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.announcement' else '' }}">📢 {{ _('base_nav_announcements') }}</a></li>
+                    <li><a href="{{ url_for('dashboard.reaction_roles', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.reaction_roles' else '' }}">🎭 {{ _('base_nav_reaction_roles') }}</a></li>
+                    <li><a href="{{ url_for('dashboard.settings', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.settings' else '' }}">⚙️ {{ _('base_nav_settings') }}</a></li>
+                    <li><a href="{{ url_for('dashboard.warnings', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.warnings' else '' }}">⚖️ {{ _('base_nav_warnings') }}</a></li>
+                    <li><a href="{{ url_for('dashboard.messagelogs', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.messagelogs' else '' }}">📜 {{ _('base_nav_message_logs') }}</a></li>
+                    <li><a href="{{ url_for('dashboard.leaderboard', server_id=server.id) }}" class="{{ 'active' if request.endpoint == 'dashboard.leaderboard' else '' }}">🏆 {{ _('base_nav_leaderboard') }}</a></li>
+                </ul>
+    
+                <div class="sidebar-footer">
+                     <ul class="sidebar-nav">
+                        {% if is_bot_admin %}
+                            <li><a href="{{ url_for('admin.dashboard') }}">👑 {{ _('base_nav_admin_panel') }}</a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('public.home') }}">&larr; {{ _('base_nav_back_to_servers') }}</a></li>
+                     </ul>
+                </div>
+            </aside>
+    
+            <main class="main-content">
+                <button class="sidebar-toggle" id="sidebar-toggle" title="{{ _('base_toggle_sidebar_title') }}">&lt;</button>
+                
+                {# C'est ici que le contenu de chaque page sera injecté #}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    {% endblock %}
+
+    <script>
+        // Ce script reste ici pour la sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleButton = document.getElementById('sidebar-toggle');
+
+            if (toggleButton) { // Vérifier si le bouton existe
+                toggleButton.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                });
+            }
+        });
+    </script>
+
+    <!-- On garde Bootstrap JS pour certains composants comme les alertes si besoin -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- NOUVEAU : Loader global "blindé" -->
+    <div id="global-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 99999; justify-content: center; align-items: center; color: white; font-size: 1.2rem; flex-direction: column;">
+        <div class="spinner" style="border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #fff; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+        <span>Traitement en cours...</span>
+    </div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const loader = document.getElementById('global-loader');
+        if (!loader) return;
+
+        function showLoader() {
+            loader.style.display = 'flex';
+        }
+
+        // 1. Attache le loader à la soumission de TOUS les formulaires
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', showLoader);
+        });
+
+        // 2. Attache le loader à TOUS les liens navigables
+        document.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                const href = link.getAttribute('href');
+                const target = link.getAttribute('target');
+
+                // Conditions pour NE PAS afficher le loader
+                if (target === '_blank' || (href && (href.startsWith('#') || href.startsWith('javascript:'))) || link.classList.contains('no-loader')) {
+                    return; // On ne fait rien pour ces liens
+                }
+                showLoader();
+            });
+        });
+
+        // 3. Cache le loader si l'utilisateur revient avec le bouton "précédent" (bfcache)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                loader.style.display = 'none';
+            }
+        });
+    });
+    </script>
+
+</body>
+</html>

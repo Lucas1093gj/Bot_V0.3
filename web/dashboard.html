@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('dashboard_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block content %}
+    <h1>{{ _('dashboard_h1') }}</h1>
+    <p class="text-muted">{{ (_('dashboard_subtitle') % {'server_name': server.name}) | safe }}</p>
+    <hr>
+
+    <!-- Grille des statistiques -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-title">{{ _('dashboard_stat_total_members') }}</div>
+            <div class="stat-value">{{ "{:,}".format(guild_details.get('approximate_member_count', 0)).replace(",", " ") }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">{{ _('dashboard_stat_online') }}</div>
+            <div class="stat-value">{{ "{:,}".format(guild_details.get('approximate_presence_count', 0)).replace(",", " ") }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">{{ _('dashboard_stat_monthly_warnings') }}</div>
+            <div class="stat-value">{{ monthly_warnings }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">{{ _('dashboard_stat_top_member') }}</div>
+            {% if top_member %}
+                <div class="stat-value small" title="{{ top_member.global_name }}">{{ top_member.name }}</div>
+            {% else %}
+                <div class="stat-value small">{{ _('dashboard_stat_not_available') }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section des actions rapides et logs -->
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <h2>{{ _('dashboard_quick_actions_title') }}</h2>
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('dashboard.announcement', server_id=server.id) }}" class="btn btn-primary">📢 {{ _('dashboard_action_send_announcement') }}</a>
+                <a href="{{ url_for('dashboard.warnings', server_id=server.id) }}" class="btn btn-secondary">⚖️ {{ _('dashboard_action_manage_warnings') }}</a>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <h2>{{ _('dashboard_recent_mod_activity_title') }}</h2>
+            {% if recent_logs %}
+                <ul class="recent-logs-list">
+                    {% for log in recent_logs %}
+                        <li>{{ (_('dashboard_log_warned_by') % {'moderator': log.moderator_details.name if log.moderator_details else 'ID: ' ~ log.moderator_id|string, 'user': log.user_details.name if log.user_details else 'ID: ' ~ log.user_id|string}) | safe }}
+                            <small class="text-muted d-block">{{ _('dashboard_log_reason') }}: {{ log.reason | truncate(50) }}</small>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-secondary">{{ _('dashboard_no_recent_mod_activity') }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+{% endblock %}

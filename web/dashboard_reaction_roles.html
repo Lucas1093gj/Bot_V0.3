@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('reaction_roles_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .role-tag {
+        display: inline-block;
+        padding: 0.3em 0.6em;
+        font-size: 0.8em;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+        color: #fff;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    .role-tag-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    .role-option {
+        display: flex;
+        align-items: center;
+    }
+    .role-color-dot {
+        height: 12px;
+        width: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>🎭 {{ _('reaction_roles_page_h1') }}</h1>
+    <p class="text-muted">{{ _('reaction_roles_page_subtitle') }}</p>
+    <hr>
+
+    <!-- Section pour créer un nouveau panneau -->
+    <div class="settings-card mb-4">
+        <div class="settings-card-header">
+            <h2>{{ _('reaction_roles_create_panel_title') }}</h2>
+        </div>
+        <div class="settings-card-body">
+            <form method="POST" action="{{ url_for('dashboard.reaction_roles', server_id=server.id) }}">
+                <div class="mb-3">
+                    <label for="rr_channel" class="form-label">{{ _('reaction_roles_form_channel_label') }}</label>
+                    <select class="form-select" id="rr_channel" name="channel_id" required>
+                        <option selected disabled value="">{{ _('reaction_roles_form_channel_placeholder') }}</option>
+                        {% for channel in text_channels %}
+                            <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="rr_title" class="form-label">{{ _('reaction_roles_form_embed_title_label') }}</label>
+                    <input type="text" class="form-control" id="rr_title" name="embed_title" placeholder="{{ _('reaction_roles_form_embed_title_placeholder') }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="rr_description" class="form-label">{{ _('reaction_roles_form_embed_desc_label') }}</label>
+                    <textarea class="form-control" id="rr_description" name="embed_description" rows="3" placeholder="{{ _('reaction_roles_form_embed_desc_placeholder') }}"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ _('reaction_roles_form_roles_label') }}</label>
+                    <p class="text-muted small">{{ _('reaction_roles_form_roles_desc') }}</p>
+                    <div class="role-tag-container">
+                        {% for role in all_roles %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="role_ids" value="{{ role.id }}" id="role-{{ role.id }}">
+                                <label class="form-check-label" for="role-{{ role.id }}">
+                                    <span class="role-tag" style="border: 1px solid #{{ '%06x' % role.color if role.color != 0 else '888' }}; background-color: rgba({{ role.rgb_color.r }}, {{ role.rgb_color.g }}, {{ role.rgb_color.b }}, 0.2);">
+                                        {{ role.name }}
+                                    </span>
+                                </label>
+                            </div>
+                        {% else %}
+                            <p class="text-warning">{{ _('reaction_roles_no_roles_found') }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" {% if not all_roles %}disabled{% endif %}>{{ _('reaction_roles_create_panel_button') }}</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Section pour lister les panneaux existants -->
+    <div class="settings-card">
+        <div class="settings-card-header">
+            <h2>{{ _('reaction_roles_existing_panels_title') }}</h2>
+        </div>
+        <div class="settings-card-body">
+            {% if not reaction_role_panels %}
+                <div class="text-center text-muted p-4">
+                    <p>{{ _('reaction_roles_no_panels_found') }}</p>
+                </div>
+            {% else %}
+                <!-- La logique pour afficher les panneaux existants ira ici -->
+            {% endif %}
+        </div>
+    </div>
+
+{% endblock %}

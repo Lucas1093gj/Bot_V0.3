@@ -17,7 +17,7 @@ __pycache__/
 guild_backups/
 music_state_backups/
 guild_configs/
-web/
+#web/
 venv/
-app.py
-main2.py
+#app.py
+#main2.py

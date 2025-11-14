@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('admin_dashboard_title') }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+        background-color: var(--primary-color);
+    }
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .form-switch .form-check-input {
+        width: 3.5em;
+        height: 1.75em;
+    }
+    .log-entry {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.9em;
+    }
+    .log-entry .text-success { color: #28a745 !important; }
+    .log-entry .text-danger { color: #dc3545 !important; }
+</style>
+<!-- NOUVEAU : Correction pour les modales en mode clair -->
+<style>
+    .modal-content {
+        background-color: var(--background-color-lighter);
+        color: var(--text-color);
+    }
+</style>
+{% endblock %}
+
+{% block body_content %}
+<div class="container">
+    {# Afficher les messages flash (confirmation d'envoi, erreurs) #}
+    {% include '_flash_messages.html' %} {# Gardons les messages flash #}
+    
+    <div style="padding-top: 30px; padding-bottom: 30px;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h1>👑 {{ _('admin_dashboard_h1') }}</h1>
+            <a href="{{ url_for('public.home') }}" class="btn btn-outline-secondary">&larr; {{ _('admin_dashboard_quit_panel') }}</a>
+        </div>
+        <p class="text-muted">{{ _('admin_dashboard_reserved_section') }}</p>
+        <hr>
+
+        <!-- Navigation par onglets -->
+        <ul class="nav nav-pills mb-3" id="admin-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="analytics-tab" data-bs-toggle="pill" data-bs-target="#analytics" type="button" role="tab" aria-controls="analytics" aria-selected="true">📊 {{ _('admin_dashboard_tab_analytics') }}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="config-tab" data-bs-toggle="pill" data-bs-target="#config" type="button" role="tab" aria-controls="config" aria-selected="false">🔧 {{ _('admin_dashboard_tab_config') }}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">👩‍💼 {{ _('admin_dashboard_tab_users') }}</button>
+            </li>
+        </ul>
+
+        <!-- Contenu des onglets -->
+        <div class="tab-content" id="admin-tabContent">
+            <!-- Onglet Analytiques -->
+            <div class="tab-pane fade show active" id="analytics" role="tabpanel" aria-labelledby="analytics-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="settings-card mb-4">
+                            <div class="settings-card-header"><h2>{{ _('admin_dashboard_popular_commands_title') }}</h2></div>
+                            <div class="settings-card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for cmd in popular_commands %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <code>/{{ cmd.command_name }}</code>
+                                        <span class="badge bg-primary rounded-pill">{{ cmd.count }}</span>
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item">{{ _('admin_dashboard_no_command_data') }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="settings-card mb-4">
+                            <div class="settings-card-header"><h2>{{ _('admin_dashboard_active_servers_title') }}</h2></div>
+                            <div class="settings-card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for guild in active_guilds %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ guild.name }}
+                                        <span class="badge bg-primary rounded-pill">{{ guild.count }}</span>
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item">{{ _('admin_dashboard_no_activity_data') }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_live_command_log_title') }}</h2></div>
+                    <div class="settings-card-body table-responsive">
+                        <table class="table table-sm table-borderless">
+                            <tbody>
+                                {% for log in command_logs %}
+                                <tr class="log-entry">
+                                    <td class="text-muted">{{ log.timestamp|datetimeformat('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        {% if log.success %}
+                                        <span class="text-success">[OK]</span>
+                                        {% else %}
+                                        <span class="text-danger">[ERR]</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><code>/{{ log.command_name }}</code></td>
+                                    <td class="text-muted">{{ _('admin_dashboard_log_by') }} {{ log.user_id }} {{ _('admin_dashboard_log_on') }} {{ log.guild_id or 'DM' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td>{{ _('admin_dashboard_no_command_logs_yet') }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onglet Configuration -->
+            <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="config-tab">
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_global_config_title') }}</h2></div>
+                    <div class="settings-card-body">
+                        <form method="POST">
+                            <input type="hidden" name="maintenance_mode_submitted" value="1">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" role="switch" id="maintenance_mode" name="maintenance_mode" {% if maintenance_mode_on %}checked{% endif %}>
+                                <label class="form-check-label" for="maintenance_mode">{{ _('admin_dashboard_maintenance_mode_label') }}</label>
+                                <small class="form-text text-muted d-block">{{ _('admin_dashboard_maintenance_mode_desc') }}</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">{{ _('admin_dashboard_save_config_button') }}</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_admin_actions_title') }}</h2></div>
+                    <div class="settings-card-body">
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmRestartModal">{{ _('admin_dashboard_restart_bot_button') }}</button>
+                    </div>
+                </div>
+
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_update_log_title') }}</h2></div>
+                    <div class="settings-card-body">
+                        <p class="text-muted">{{ _('admin_dashboard_update_log_desc') }}</p>
+
+                        <!-- NOUVEAU : Guide d'utilisation du HTML -->
+                        <div class="accordion mb-3" id="html-guide-accordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="html-guide-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#html-guide-collapse" aria-expanded="false" aria-controls="html-guide-collapse">
+                                        💡 {{ _('admin_dashboard_html_guide_title') }}
+                                    </button>
+                                </h2>
+                                <div id="html-guide-collapse" class="accordion-collapse collapse" aria-labelledby="html-guide-header" data-bs-parent="#html-guide-accordion">
+                                    <div class="accordion-body">
+                                        <p>{{ _('admin_dashboard_html_guide_intro') }}</p>
+                                        <ul>
+                                            <li>
+                                                <strong>{{ _('admin_dashboard_html_guide_titles_label') }}</strong> {{ _('admin_dashboard_html_guide_titles_desc') }}
+                                            </li>
+                                            <li>
+                                                <strong>{{ _('admin_dashboard_html_guide_lists_label') }}</strong> {{ _('admin_dashboard_html_guide_lists_desc') }}
+                                                <pre><code>&lt;ul&gt;\n  &lt;li&gt;{{ _('admin_dashboard_html_guide_lists_item1') }}&lt;/li&gt;\n  &lt;li&gt;{{ _('admin_dashboard_html_guide_lists_item2') }}&lt;/li&gt;\n&lt;/ul&gt;</code></pre>
+                                            </li>
+                                            <li>
+                                                <strong>{{ _('admin_dashboard_html_guide_format_label') }}</strong>
+                                                <ul>
+                                                    <li><code>&lt;strong&gt;{{ _('admin_dashboard_html_guide_format_bold') }}&lt;/strong&gt;</code> {{ _('admin_dashboard_html_guide_format_bold_desc') }}</li>
+                                                    <li><code>&lt;em&gt;{{ _('admin_dashboard_html_guide_format_italic') }}&lt;/em&gt;</code> {{ _('admin_dashboard_html_guide_format_italic_desc') }}</li>
+                                                    <li><code>&lt;code&gt;/commande&lt;/code&gt;</code> {{ _('admin_dashboard_html_guide_format_code_desc') }}</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <strong>{{ _('admin_dashboard_html_guide_links_label') }}</strong> {{ _('admin_dashboard_html_guide_links_desc') }}
+                                                <code>&lt;a href="https://votre-lien.com"&gt;{{ _('admin_dashboard_html_guide_links_example') }}&lt;/a&gt;</code>
+                                            </li>
+                                            <li>
+                                                <strong>{{ _('admin_dashboard_html_guide_separators_label') }}</strong> {{ _('admin_dashboard_html_guide_separators_desc') }}
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form id="vlog-form" method="POST">
+                            <input type="hidden" name="update_vlog_submitted" value="1">
+                            <div class="form-group mb-3">
+                                <textarea class="form-control" id="update_vlog_content" name="update_vlog_content" rows="8" placeholder="{{ _('admin_dashboard_update_log_placeholder') }}">{{ update_vlog_content or '' }}</textarea>
+                            </div>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#confirmVlogModal">{{ _('admin_dashboard_preview_save_button') }}</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- NOUVEAU : Carte pour l'historique du journal des mises à jour -->
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_vlog_history_title') }}</h2></div>
+                    <div class="settings-card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for entry in vlog_history %}
+                            <li class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ _('admin_dashboard_vlog_history_by') }} {{ entry.admin_user_name }}</h5>
+                                    <small class="text-muted">{{ entry.timestamp|datetimeformat(_('datetime_format_full')) }}</small>
+                                </div>
+                                <p class="mb-1">{{ _('admin_dashboard_vlog_history_content_updated') }}</p>
+                                <!-- On pourrait ajouter un bouton pour voir le diff si besoin -->
+                            </li>
+                            {% else %}
+                            <li class="list-group-item">{{ _('admin_dashboard_vlog_history_no_history') }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_broadcast_title') }}</h2></div>
+                    <div class="settings-card-body">
+                        <p class="text-muted">{{ _('admin_dashboard_broadcast_desc') }}</p>
+                        <form id="broadcast-form" method="POST">
+                            <div class="form-group mb-3">
+                                <label for="broadcast_message">{{ _('admin_dashboard_broadcast_content_label') }}</label>
+                                <textarea class="form-control" id="broadcast_message" name="broadcast_message" rows="5" placeholder="{{ _('admin_dashboard_broadcast_placeholder') }}"></textarea>
+                            </div>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#confirmBroadcastModal">{{ _('admin_dashboard_broadcast_send_button') }}</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onglet Utilisateurs -->
+            <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                <div class="settings-card mt-4">
+                    <div class="settings-card-header"><h2>{{ _('admin_dashboard_user_search_title') }}</h2></div>
+                    <div class="settings-card-body">
+                        <p class="text-muted">{{ _('admin_dashboard_user_search_desc') }}</p>
+                        <form action="{{ url_for('admin.user_lookup') }}" method="GET">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" placeholder="{{ _('admin_dashboard_user_search_placeholder') }}" name="user_id" required>
+                                <button class="btn btn-outline-primary" type="submit">{{ _('admin_dashboard_user_search_button') }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modales -->
+<div class="modal fade" id="confirmRestartModal" tabindex="-1" aria-labelledby="confirmRestartModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="confirmRestartModalLabel">⚠️ {{ _('admin_dashboard_modal_restart_title') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p>{{ _('admin_dashboard_modal_restart_body1') }}</p>
+                <p class="text-danger"><strong>{{ _('admin_dashboard_modal_restart_body2') }}</strong> {{ _('admin_dashboard_modal_restart_body3') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('modal_cancel') }}</button>
+                <form action="{{ url_for('admin.restart') }}" method="POST" style="display: inline;"><button type="submit" class="btn btn-danger">{{ _('modal_restart_confirm') }}</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NOUVEAU : Modale pour la confirmation du Journal des Mises à Jour -->
+<div class="modal fade" id="confirmVlogModal" tabindex="-1" aria-labelledby="confirmVlogModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="confirmVlogModalLabel">{{ _('admin_dashboard_modal_vlog_title') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p>{{ _('admin_dashboard_modal_vlog_body1') }}</p>
+                <div id="vlog-preview" style="white-space: pre-wrap; text-align: center; background-color: var(--background-color-darker); padding: 15px; border-radius: 5px; min-height: 100px;">
+                    <!-- Le contenu sera injecté ici par JavaScript -->
+                </div>
+                <p class="text-danger mt-3"><strong>{{ _('admin_dashboard_modal_vlog_body2') }}</strong> {{ _('admin_dashboard_modal_vlog_body3') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('modal_cancel') }}</button>
+                <button type="submit" form="vlog-form" class="btn btn-primary" id="confirm-vlog-submit">{{ _('modal_vlog_confirm') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmBroadcastModal" tabindex="-1" aria-labelledby="confirmBroadcastModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="confirmBroadcastModalLabel">{{ _('admin_dashboard_modal_broadcast_title') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p>{{ _('admin_dashboard_modal_broadcast_body1') % {'count': bot_guilds_count} }}</p>
+                <p><strong>{{ _('admin_dashboard_modal_broadcast_content_label') }}</strong></p>
+                <pre id="message-preview" style="white-space: pre-wrap; background-color: var(--background-color-darker); padding: 10px; border-radius: 5px;"></pre>
+                <p class="text-danger mt-3"><strong>{{ _('admin_dashboard_modal_broadcast_body2') }}</strong> {{ _('admin_dashboard_modal_broadcast_body3') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('modal_cancel') }}</button>
+                <button type="submit" form="broadcast-form" class="btn btn-danger" id="confirm-broadcast-submit">{{ _('modal_broadcast_confirm') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Script pour la prévisualisation du message d'annonce
+        const confirmModal = document.getElementById('confirmBroadcastModal');
+        if (confirmModal) {
+            confirmModal.addEventListener('show.bs.modal', function () {
+                const messageContent = document.getElementById('broadcast_message').value;
+                const previewArea = document.getElementById('message-preview');
+                previewArea.textContent = messageContent || "{{ _('admin_dashboard_modal_broadcast_empty_message') }}";
+            });
+        }
+
+        // Permet de soumettre le bon formulaire depuis la modale
+        const broadcastForm = document.getElementById('broadcast-form');
+        const broadcastModalButton = document.getElementById('confirm-broadcast-submit');
+        if (broadcastForm && broadcastModalButton) {
+            broadcastModalButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                broadcastForm.submit();
+            });
+        }
+        
+        // --- MODIFIÉ : Script pour la prévisualisation du journal des mises à jour DANS LA MODALE ---
+        const vlogTextarea = document.getElementById('update_vlog_content');
+        const confirmVlogModal = document.getElementById('confirmVlogModal');
+
+        if (confirmVlogModal && vlogTextarea) {
+            confirmVlogModal.addEventListener('show.bs.modal', function () {
+                const vlogContent = vlogTextarea.value.trim(); // On supprime les espaces au début et à la fin
+                const previewArea = document.getElementById('vlog-preview');
+                // On utilise innerHTML pour que les balises HTML soient interprétées
+                previewArea.innerHTML = vlogContent || "{{ _('admin_dashboard_modal_vlog_empty_message') }}";
+            });
+        }
+    });
+</script>
+{% endblock %}

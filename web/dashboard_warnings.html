@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('warnings_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block content %}
+    <h1>⚖️ {{ _('warnings_page_h1') }}</h1>
+    <p class="text-muted">{{ _('warnings_page_subtitle') }}</p>
+    {% if warnings %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>{{ _('warnings_table_header_id') }}</th>
+                    <th style="width: 25%;">{{ _('warnings_table_header_member') }}</th>
+                    <th style="width: 25%;">{{ _('warnings_table_header_moderator') }}</th>
+                    <th>{{ _('warnings_table_header_reason') }}</th>
+                    <th class="text-end">{{ _('warnings_table_header_date') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for warn in warnings %}
+                <tr>
+                    <td>{{ warn.id }}</td>
+                    <td>
+                        <img src="{{ warn.user_details.avatar_url }}" width="32" height="32" style="border-radius: 50%; margin-right: 8px;">
+                        <span>{{ warn.user_details.name }}</span>
+                        <br><small class="text-muted">{{ warn.user_id }}</small>
+                    </td>
+                    <td>
+                        <img src="{{ warn.moderator_details.avatar_url }}" width="32" height="32" style="border-radius: 50%; margin-right: 8px;">
+                        <span>{{ warn.moderator_details.name }}</span>
+                        <br><small class="text-muted">{{ warn.moderator_id }}</small>
+                    </td>
+                    <td>{{ warn.reason or _('warnings_no_reason_provided') }}</td>
+                    <td class="text-end"><small>{{ warn.timestamp.strftime('%d/%m/%Y %H:%M') }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">{{ _('warnings_no_data') }}</div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('logs_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block content %}
+    <h1>{{ _('logs_page_h1') % {'server_name': server.name} }}</h1>
+    <p class="text-muted">{{ _('logs_page_subtitle') }}</p>
+    <a href="{{ url_for('dashboard.server_home', server_id=server.id) }}">{{ _('logs_page_back_to_dashboard') }}</a>
+    <hr>
+    {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">{{ _('logs_table_header_date') }}</th>
+                        <th>{{ _('logs_table_header_event') }}</th>
+                        <th style="width: 20%;">{{ _('logs_table_header_author') }}</th>
+                        <th style="width: 20%;">{{ _('logs_table_header_channel') }}</th>
+                        <th style="width: 40%;">{{ _('logs_table_header_content') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td><small>{{ log.timestamp.strftime('%d/%m %H:%M:%S') }}</small></td>
+                        <td>
+                            {% if log.event_type == 'deleted' %}
+                                <span class="badge bg-danger">{{ _('logs_event_deleted') }}</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">{{ _('logs_event_edited') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.author_details.name }}<br><small class="text-muted">{{ log.author_id }}</small></td>
+                        <td>#{{ log.channel_name }}<br><small class="text-muted">{{ log.channel_id }}</small></td>
+                        <td style="word-break: break-all;">
+                            {% if log.event_type == 'deleted' %}
+                                <p><code>{{ log.old_content }}</code></p>
+                            {% else %}
+                                <p><small>{{ _('logs_content_before') }}</small> <code>{{ log.old_content }}</code></p>
+                                <p><small>{{ _('logs_content_after') }}</small> <code>{{ log.new_content }}</code></p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">{{ _('logs_no_data') }}</div>
+    {% endif %}
+{% endblock %}

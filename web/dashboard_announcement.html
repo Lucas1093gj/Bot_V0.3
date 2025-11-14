@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('announcements_page_title') }} - {{ server.name }}{% endblock %}
+
+{% block content %}
+    <h1>📢 {{ _('announcements_page_h1') }}</h1>
+    <p class="text-muted">{{ _('announcements_page_subtitle') }}</p>
+
+    <form method="POST">
+        <div class="row">
+            <!-- Colonne de gauche : Formulaire de création -->
+            <div class="col-lg-6">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h2>{{ _('announcements_form_title') }}</h2>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="form-group">
+                            <label for="channel_id">{{ _('announcements_form_channel_label') }}</label>
+                            <select class="form-select" id="channel_id" name="channel_id" required>
+                                <option value="" disabled selected>{{ _('announcements_form_channel_placeholder') }}</option>
+                                {% for channel in text_channels %}
+                                    <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="embed_title">{{ _('announcements_form_embed_title_label') }}</label>
+                            <input type="text" class="form-control" id="embed_title" name="embed_title" placeholder="{{ _('announcements_form_embed_title_placeholder') }}" value="{{ form_data.embed_title if form_data }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="embed_description">{{ _('announcements_form_embed_desc_label') }}</label>
+                            <textarea class="form-control" id="embed_description" name="embed_description" rows="8" placeholder="{{ _('announcements_form_embed_desc_placeholder') }}">{{ form_data.embed_description if form_data }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="embed_image_url">{{ _('announcements_form_image_url_label') }}</label>
+                            <input type="url" class="form-control" id="embed_image_url" name="embed_image_url" placeholder="{{ _('announcements_form_image_url_placeholder') }}" value="{{ form_data.embed_image_url if form_data }}">
+                            <small class="form-text text-muted mt-1">
+                                Le lien doit être un lien <strong>direct</strong> vers une image (se terminant par <code>.png</code>, <code>.jpg</code>, <code>.gif</code>, etc.).<br>
+                                <strong>Astuce :</strong> Faites un clic droit sur l'image que vous voulez utiliser et choisissez "Copier l'adresse de l'image".
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label for="embed_color">{{ _('announcements_form_color_label') }}</label>
+                            <input type="color" class="form-control form-control-color" id="embed_color" name="embed_color" value="{{ form_data.embed_color if form_data else '#5865F2' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colonne de droite : Prévisualisation -->
+            <div class="col-lg-6">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h2>{{ _('announcements_preview_title') }}</h2>
+                    </div>
+                    <div class="settings-card-body">
+                        <div id="preview-container" style="background-color: var(--background-color); padding: 15px; border-radius: var(--border-radius);">
+                            <div id="preview-embed" style="border-left: 4px solid #5865F2; padding-left: 10px;">
+                                <div id="preview-title" style="font-weight: bold; font-size: 1.1rem; margin-bottom: 8px;">{{ _('announcements_preview_default_title') }}</div>
+                                <div id="preview-description" style="white-space: pre-wrap;">{{ _('announcements_preview_default_desc') }}</div>
+                                <img id="preview-image" src="" style="max-width: 100%; border-radius: var(--border-radius); margin-top: 10px; display: none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">{{ _('announcements_send_button') }}</button>
+        </div>
+    </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const titleInput = document.getElementById('embed_title');
+    const descriptionInput = document.getElementById('embed_description');
+    const colorInput = document.getElementById('embed_color');
+    const imageUrlInput = document.getElementById('embed_image_url');
+
+    const previewEmbed = document.getElementById('preview-embed');
+    const previewTitle = document.getElementById('preview-title');
+    const previewDescription = document.getElementById('preview-description');
+    const previewImage = document.getElementById('preview-image');
+
+    function updatePreview() {
+        // Titre
+        const title = titleInput.value.trim();
+        if (title) {
+            previewTitle.textContent = title;
+            previewTitle.style.display = 'block';
+        } else {
+            previewTitle.textContent = "{{ _('announcements_preview_default_title') }}";
+        }
+
+        // Description
+        const description = descriptionInput.value.trim();
+        if (description) {
+            // Simple conversion Markdown pour la prévisualisation
+            let html = description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                  .replace(/__(.*?)__/g, '<u>$1</u>');
+            previewDescription.innerHTML = html;
+            previewDescription.style.display = 'block';
+        } else {
+            previewDescription.innerHTML = "{{ _('announcements_preview_default_desc') }}";
+        }
+
+        // Couleur
+        previewEmbed.style.borderLeftColor = colorInput.value;
+
+        // Image
+        const imageUrl = imageUrlInput.value.trim();
+        if (imageUrl) {
+            previewImage.src = imageUrl;
+            previewImage.style.display = 'block';
+        } else {
+            previewImage.style.display = 'none';
+        }
+    }
+
+    titleInput.addEventListener('input', updatePreview);
+    descriptionInput.addEventListener('input', updatePreview);
+    colorInput.addEventListener('input', updatePreview);
+    imageUrlInput.addEventListener('input', updatePreview);
+
+    // Initial update
+    updatePreview();
+});
+</script>
+
+{% endblock %}

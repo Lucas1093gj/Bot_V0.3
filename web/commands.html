@@ -1,0 +1,48 @@
+{% extends "base_public.html" %}
+
+{% block title %}{{ _('commands_page_title_suffix') }}{% endblock %}
+
+{% block content %}
+<div class="landing-container">
+    <div class="text-center mb-12">
+        <a href="{{ url_for('public.home') }}" class="text-blurple hover:underline mb-4 inline-block">&larr; {{ _('commands_page_back_to_home') }}</a>
+        <h1 class="text-4xl md:text-5xl font-bold mb-2">{{ _('commands_page_h1') }}</h1>
+        <p class="text-lg text-gray-300">{{ _('commands_page_subtitle') % {'bot_name': bot_name} }}</p>
+    </div>
+
+    <!-- Barre de recherche -->
+    <form method="get" action="{{ url_for('public.commands_page') }}" class="mb-10 max-w-2xl mx-auto">
+        <div class="relative">
+            <input type="search" name="q" value="{{ search_query or '' }}" placeholder="{{ _('commands_page_search_placeholder') }}" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-3 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-blurple transition">
+            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+    </form>
+
+    {% if search_query and not grouped_commands %}
+        <div class="text-center bg-gray-800/50 p-8 rounded-lg">
+            <p class="text-xl">{{ _('commands_page_no_results') }}</p>
+            <p class="text-gray-400 mt-2">{{ _('commands_page_results_for') }} "{{ search_query }}"</p>
+        </div>
+    {% else %}
+        <!-- Liste des commandes -->
+        <div class="space-y-10">
+            {% for category, commands in grouped_commands.items() %}
+            <div id="category-{{ category|lower|replace(' ', '-') }}">
+                <h2 class="text-2xl font-semibold border-b-2 border-gray-700 pb-2 mb-6">{{ category }}</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for command in commands %}
+                    <div class="bg-gray-800/50 p-4 rounded-lg border border-transparent hover:border-blurple transition-all duration-300">
+                        <h3 class="font-mono text-lg text-light-blurple">/{{ command.name }}</h3>
+                        <p class="text-gray-300 text-sm mt-1">{{ command.description }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

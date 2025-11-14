@@ -1,9 +1,14 @@
-py-cord
-python-dotenv
-wavelink
-spotipy
-aiosqlite
-yt-dlp
-PyNaCl
-Flask
-requests
+# --- Cœur du Bot & Utilitaires ---
+py-cord[voice]  # La bibliothèque principale qui fait le lien avec Discord. L'option [voice] est essentielle pour la musique.
+python-dotenv   # Permet de charger les configurations secrètes (comme le token) depuis un fichier .env.
+
+# --- Musique (Wavelink) ---
+wavelink==3.2.0 # Le client pour se connecter à un serveur Lavalink, qui gère le streaming audio. Version figée pour la stabilité.
+
+# --- Base de données ---
+aiosqlite       # Permet d'interagir avec la base de données SQLite de manière asynchrone, sans bloquer le bot.
+
+# --- Serveur Web (Dashboard) ---
+Flask           # Micro-framework web utilisé pour créer le tableau de bord.
+requests        # Bibliothèque simple et pratique pour faire des appels à l'API de Discord depuis le serveur web.
+waitress        # Un serveur web simple et fiable pour faire tourner l'application Flask en production.

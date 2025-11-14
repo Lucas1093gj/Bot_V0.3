@@ -1,0 +1,13 @@
+{#
+    Ce template partiel représente une seule carte de serveur.
+    Il attend une variable 'server' dans son contexte.
+ #}
+<div class="server-icon">
+    {% if server.icon %}
+        <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png" alt="{{ _('server_card_icon_alt_prefix') }} {{ server.name }}">
+    {% else %}
+        {{ server.name[0] | upper }}
+    {% endif %}
+</div>
+<h3 style="margin-bottom: 20px;">{{ server.name }}</h3>
+<a href="{{ url_for('dashboard.server_home', server_id=server.id) }}" class="login-button" style="margin-top: auto;">{{ _('server_card_manage_button') }}</a>

@@ -1,0 +1,100 @@
+/* Styles pour la page de statut */
+
+.status-container {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 20px;
+    color: #dcddde;
+}
+
+.status-header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.status-header h1 {
+    font-size: 2.8rem;
+    margin-bottom: 10px;
+}
+
+.status-header .subtitle {
+    font-size: 1.2rem;
+    color: #b9bbbe;
+}
+
+.overall-status {
+    background-color: #2b2d31;
+    padding: 25px 30px;
+    border-radius: 8px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 5px solid; /* La couleur sera définie par une classe */
+}
+
+.overall-status.status-ok { border-color: #43b581; }
+.overall-status.status-error { border-color: #f04747; }
+
+.overall-status h2 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.overall-status .last-checked {
+    font-size: 0.9rem;
+    color: #72767d;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.status-card {
+    background-color: #2b2d31;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.status-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.status-card-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.status-indicator {
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-indicator.ok { background-color: #2d6d4b; color: #fff; }
+.status-indicator.error { background-color: #8c3434; color: #fff; }
+.status-indicator.neutral { background-color: #4f545c; color: #fff; }
+
+.status-card-body {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.status-card-body .unit {
+    font-size: 1rem;
+    color: #72767d;
+    margin-left: 5px;
+}
+
+.status-card-body.small-text {
+    font-size: 1rem;
+    font-weight: normal;
+}

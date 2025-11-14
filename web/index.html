@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ bot_name | default('Bot Dashboard') }} - {{ _('index_title_suffix') }}</title>
+    <!-- NOUVEAU : Lien vers le fichier de style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Lien vers une librairie d'icônes (optionnel, pour l'icône Discord) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* --- STYLES PARTAGÉS --- */
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
+            list-style: none;
+            padding: 0;
+        }
+        .server-card {
+            background: var(--background-color-lighter);
+            border-radius: 12px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid var(--border-color);
+        }
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        .server-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        /* Styles pour la partie connectée (simplifiés) */
+        body {
+            /* Un fond un peu plus doux que le noir pur */
+            background-color: var(--background-color); 
+        }
+        .server-selection-container {
+            padding: 20px;
+            /* Un blanc moins agressif pour les yeux */
+            color: var(--text-color);
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 40px; /* Ajout de plus d'espace autour du conteneur global */
+        }
+        .server-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        /* --- AJOUT POUR LA RESPONSIVITÉ MOBILE --- */
+        .hero-section h1 {
+            /* Force le retour à la ligne pour les mots longs */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        @media (max-width: 768px) {
+            .hero-section h1 {
+                /* Réduit la taille de la police sur les petits écrans */
+                font-size: 2em;
+            }
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            /* La marge auto n'est plus nécessaire ici */
+            gap: 20px;
+        }
+        .header-link {
+            color: var(--text-muted-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .header-link:hover {
+            color: var(--text-heading-color);
+        }
+        /* NOUVEAU : Ajout d'un séparateur pour les liens du header */
+        .desktop-nav {
+            display: flex;
+            align-items: center;
+            gap: 20px; /* Conserve l'espacement entre les liens */
+        }
+        .user-menu-container {
+            position: relative;
+        }
+        .user-menu-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-heading-color);
+            padding: 5px;
+        }
+        .user-dropdown-menu {
+            position: absolute;
+            top: 120%;
+            right: 0;
+            background-color: var(--background-color-lighter);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            min-width: 220px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            padding: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .user-dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .dropdown-header {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 8px;
+        }
+        .dropdown-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+        .dropdown-username {
+            font-weight: bold;
+            color: var(--text-heading-color);
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            color: var(--text-color);
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .dropdown-item:hover {
+            background-color: var(--primary-color);
+            color: var(--text-heading-color);
+        }
+        .dropdown-item-danger:hover {
+            background-color: #da373c;
+        }
+        .dropdown-divider {
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 8px 0;
+        }
+
+        /* --- NOUVEAU : Style pour les boutons désactivés --- */
+        .login-button.is-loading {
+            pointer-events: none; /* Empêche tout clic supplémentaire */
+            opacity: 0.7;
+            cursor: wait;
+        }
+        .login-button.is-loading::after {
+            content: '...';
+            display: inline-block;
+            animation: dots 1.4s infinite;
+        }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } }
+
+    </style>
+</head>
+<body>
+
+{% include '_header.html' %}
+
+<div class="landing-container" style="padding-top: 80px;"> {# Ajout de padding pour compenser le header fixe #}
+    <!-- ================================================== -->
+    <!-- SECTION CONDITIONNELLE : CONNEXION OU SERVEURS     -->
+    <!-- ================================================== -->
+    {% if not logged_in %}
+        {# --- CONTENU POUR UTILISATEUR DÉCONNECTÉ --- #}
+        <section class="hero-section">
+            <img src="{{ url_for('static', filename='image/funbotlogo.jpg') }}" alt="{{ _('index_logo_alt') }}" class="bot-logo">
+            <h1>{{ _('index_hero_title') % {'bot_name': bot_name} }}</h1>
+            <p class="subtitle">{{ _('index_hero_subtitle') }}</p>
+            <a href="https://discord.com/api/oauth2/authorize?client_id={{ client_id }}&redirect_uri={{ redirect_uri }}&response_type=code&scope=identify%20guilds" class="login-button">
+                <svg aria-hidden="true" role="img" width="24" height="24" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M20.317 4.36981C18.7915 3.44523 17.0256 2.86432 15.1786 2.69881C15.1563 2.74983 15.1363 2.80085 15.114 2.85187C13.6214 2.58332 12.0823 2.58332 10.5896 2.85187C10.5673 2.80085 10.5473 2.74983 10.525 2.69881C8.67803 2.86432 6.91211 3.44523 5.38659 4.36981C2.37059 7.01853 1.36312 10.8518 2.03375 14.537C3.41484 18.185 7.12638 20.6424 10.5896 21.1526C10.6119 21.1016 10.6319 21.0506 10.6542 20.9996C10.1586 20.7821 9.68533 20.5135 9.23438 20.194C8.22458 21.2442 6.96291 21.1432 6.96291 21.1432C6.96291 21.1432 6.53831 20.2955 6.93061 19.4701C6.94477 19.4458 6.95894 19.4216 6.9731 19.3973C5.81839 18.4484 5.09549 17.1695 4.81781 15.8112C4.79312 15.7582 4.76842 15.7052 4.74607 15.6522C6.44209 16.398 8.44149 16.7328 10.5896 16.7328C12.7378 16.7328 14.7372 16.398 16.4332 15.6522C16.4109 15.7052 16.3862 15.7582 16.3615 15.8112C16.0838 17.1695 15.3609 18.4484 14.2062 19.3973C14.2204 19.4216 14.2345 19.4458 14.2487 19.4701C14.641 20.2955 14.2164 21.1432 14.2164 21.1432C14.2164 21.1432 12.9547 21.2442 11.9449 20.194C11.494 20.5135 11.0207 20.7821 10.525 20.9996C10.5473 21.0506 10.5673 21.1016 10.5896 21.1526C14.0529 20.6424 17.7644 18.185 19.1455 14.537C19.8384 10.7498 18.7915 6.93913 20.317 4.36981Z"></path>
+                </svg>
+                {{ _('index_login_button') }}
+            </a>
+        </section>
+    {% else %}
+        {# --- CONTENU POUR UTILISATEUR CONNECTÉ --- #}
+        <div class="hero-section" style="padding-bottom: 40px;">
+            {% if user_info.avatar %}
+                <img src="https://cdn.discordapp.com/avatars/{{ user_info.id }}/{{ user_info.avatar }}.png" alt="{{ _('index_user_avatar_alt') }}" class="bot-logo">
+            {% endif %}
+            <h1>{{ _('index_welcome_user') % {'username': user_info.username} }}</h1>
+            <p class="subtitle">{{ _('index_select_server_prompt') }}</p>
+        </div>
+
+        {% if owned_servers %}
+            <h2>{{ _('index_owned_servers_title') }}</h2>
+            <div class="server-grid">
+                {% for server in owned_servers %}
+                    <div class="server-card">
+                        {% include '_server_card.html' %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if admin_servers %}
+            <h2 style="margin-top: 40px;">{{ _('index_admin_servers_title') }}</h2>
+            <div class="server-grid">
+                {% for server in admin_servers %}
+                    <div class="server-card">
+                        {% include '_server_card.html' %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# Le bouton déconnexion est maintenant dans le header #}
+
+        {# Ajout d'un séparateur pour créer un espace visuel #}
+        <div style="margin-top: 60px;">
+            <hr>
+        </div>
+
+    {% endif %}
+
+    <!-- ================================================== -->
+    <!-- SECTIONS COMMUNES (TOUJOURS VISIBLES)              -->
+    <!-- ================================================== -->
+    <section class="features-section" style="padding-top: 0;">
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>{{ _('index_why_bot_title') }}</h3>
+                <p>
+                    {{ _('index_why_bot_desc') }}
+                </p>
+            </div>
+            <div class="feature-card">
+                <h3>{{ _('index_join_community_title') }}</h3>
+                <p>
+                    {{ (_('index_join_community_desc') % {'guilds_count': "{:,}".format(bot_guilds_count).replace(",", " "), 'users_count': "{:,}".format(bot_users_count).replace(",", " ")}) | safe }}
+                </p>
+            </div>
+            <div class="feature-card">
+                <h3>{{ _('index_legal_title') }}</h3>
+                <p>
+                    {{ _('index_legal_desc') | safe }}
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="features-section">
+        <h2>{{ _('index_features_title') }}</h2>
+        <div class="features-grid">
+            <div class="feature-card"><h3>{{ _('index_feature_discordmaker_title') }}</h3><p>{{ _('index_feature_discordmaker_desc') }}</p></div>
+            <div class="feature-card"><h3>{{ _('index_feature_moderation_title') }}</h3><p>{{ _('index_feature_moderation_desc') }}</p></div>
+            <div class="feature-card"><h3>{{ _('index_feature_music_title') }}</h3><p>{{ _('index_feature_music_desc') }}</p></div>
+            <div class="feature-card"><h3>{{ _('index_feature_tickets_title') }}</h3><p>{{ _('index_feature_tickets_desc') }}</p></div>
+            <div class="feature-card"><h3>{{ _('index_feature_audit_title') }}</h3><p>{{ _('index_feature_audit_desc') }}</p></div>
+            <div class="feature-card"><h3>{{ _('index_feature_levels_title') }}</h3><p>{{ _('index_feature_levels_desc') }}</p></div>
+        </div>
+    </section>
+</div>
+
+{% if update_vlog_content %}
+<section class="features-section" style="padding-top: 0;">
+    <h2>{{ _('index_update_log_title') }}</h2>
+    <div class="update-vlog-container" style="white-space: pre-wrap; text-align: center; max-width: 900px; margin: 40px auto; padding: 25px; background-color: var(--background-color-lighter); border-radius: 12px; border: 1px solid var(--border-color);">
+        {{ update_vlog_content | safe }}
+    </div>
+</section>
+{% endif %}
+
+<!-- NOUVEAU : Pied de page (Footer) -->
+{% include '_footer.html' %}
+
+<!-- NOUVEAU : Script pour appliquer le thème avant le rendu de la page -->
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'light') {
+            document.documentElement.classList.add('light-mode');
+        }
+    })();
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userDropdown = document.getElementById('user-dropdown');
+
+        if (userMenuButton && userDropdown) {
+            userMenuButton.addEventListener('click', function(event) {
+                event.stopPropagation(); // Empêche le clic de se propager au document
+                userDropdown.classList.toggle('show');
+            });
+
+            // Ferme le menu si on clique n'importe où ailleurs sur la page
+            document.addEventListener('click', function(event) {
+                if (!userMenuButton.contains(event.target) && !userDropdown.contains(event.target)) {
+                    userDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        // --- NOUVEAU : Script pour le menu mobile ---
+        const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+        const mobileNavMenu = document.getElementById('mobile-nav-menu');
+
+        if (mobileNavToggle && mobileNavMenu) {
+            mobileNavToggle.addEventListener('click', function(event) {
+                event.stopPropagation();
+                mobileNavMenu.classList.toggle('show');
+            });
+
+            // Ferme aussi le menu mobile si on clique ailleurs
+            document.addEventListener('click', function(event) {
+                mobileNavMenu.classList.remove('show');
+            });
+        }
+
+        // --- NOUVEAU : Script pour empêcher la double soumission ---
+        document.querySelectorAll('.login-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                // Vérifie si le bouton est déjà en cours de traitement
+                if (button.classList.contains('is-loading')) {
+                    e.preventDefault(); // Bloque la navigation si déjà cliqué
+                    return;
+                }
+
+                // Désactive le bouton immédiatement
+                button.classList.add('is-loading');
+                button.dataset.originalText = button.textContent; // Sauvegarde le texte original
+                button.textContent = "{{ _('processing_text') }}"; // Change le texte
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

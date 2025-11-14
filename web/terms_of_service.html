@@ -1,0 +1,29 @@
+{% extends "base_public.html" %}
+
+{% block title %}{{ _('tos_page_title') }}{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <h1>{{ _('tos_page_h1') }}</h1>
+    <p><strong>{{ _('tos_last_updated') }}:</strong> {{ _('tos_update_date') }}</p>
+
+    <h2>{{ _('tos_section_1_title') }}</h2>
+    <p>{{ _('tos_section_1_p1') | safe }}</p>
+
+    <h2>{{ _('tos_section_2_title') }}</h2>
+    <p>{{ _('tos_section_2_p1') | safe }}</p>
+    <p>{{ _('tos_section_2_p2') }}</p>
+
+    <h2>{{ _('tos_section_3_title') }}</h2>
+    <p>{{ _('tos_section_3_p1') }}</p>
+    <ul>
+        <li>{{ _('tos_section_3_item1') | safe }}</li>
+        <li>{{ _('tos_section_3_item2') }}</li>
+        <li>{{ _('tos_section_3_item3') }}</li>
+    </ul>
+
+    <h2>{{ _('tos_section_4_title') }}</h2>
+    <p>{{ _('tos_section_4_p1') }}</p>
+    <p>{{ _('tos_section_4_p2') }}</p>
+</div>
+{% endblock %}
