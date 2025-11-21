@@ -536,22 +536,23 @@ class MusicCog(commands.Cog):
             )
             return 0 # On arrête le traitement et on indique qu'aucune piste n'a été ajoutée.
 
+        # --- Logique de recherche améliorée ---
         try:
-            # Si ce n'est pas une URL, on force la recherche sur YouTube
+            # 1. Nettoyage de la requête si ce n'est pas une URL
             if not is_valid_url(query):
-                search_query = f"ytsearch:{query}"
-                tracks: wavelink.Search = await wavelink.Playable.search(search_query)
+                # Supprime les (feat. ...), [lyrics] etc. pour une meilleure recherche
+                cleaned_query = re.sub(r'[\(\[].*?[\)\]]', '', query)
+                # Supprime les mots-clés courants
+                cleaned_query = re.sub(r'(?i)\s*(official|video|audio|lyric|feat|ft)\.?\s*', ' ', cleaned_query)
+                # On garde que les caractères alphanumériques, espaces et tirets
+                cleaned_query = re.sub(r'[^\w\s-]', '', cleaned_query).strip()
+                
+                search_query = f"ytsearch:{cleaned_query}"
             else:
-                tracks: wavelink.Search = await wavelink.Playable.search(query)
+                search_query = query
 
-            # 2. Si la première tentative échoue et que c'est une recherche Spotify, on tente une recherche plus simple.
-            if not tracks and query.startswith("ytsearch:"):
-                # On extrait uniquement le titre de la chanson (ce qui est après le "-")
-                parts = query.split(' - ', 1)
-                if len(parts) > 1:
-                    simple_query = f"ytsearch:{parts[1].strip()}"
-                    print(f"[Wavelink Search] La recherche pour '{query}' a échoué. Tentative avec une recherche simplifiée : '{simple_query}'")
-                    tracks = await wavelink.Playable.search(simple_query)
+            # 2. Lancement de la recherche
+            tracks: wavelink.Search = await wavelink.Playable.search(search_query)
 
 
         except (wavelink.LavalinkException, wavelink.LavalinkLoadException) as e:
