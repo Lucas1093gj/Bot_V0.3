@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord.ext import tasks
 from discord import app_commands
 import re
+from urllib.parse import urlparse
 import spotipy
 from datetime import timedelta
 
@@ -13,6 +14,14 @@ from datetime import timedelta
 STATE_BACKUP_DIR = "music_state_backups"
 
 # --- Structures de données pour la sauvegarde ---
+def is_valid_url(url: str) -> bool:
+    """Vérifie si une chaîne est une URL valide."""
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except (ValueError, AttributeError):
+        return False
+
 def track_to_dict(track: wavelink.Playable) -> dict:
     """Convertit un objet piste Wavelink en un dictionnaire simple, facile à sauvegarder en JSON."""
     return { # noqa
@@ -528,13 +537,12 @@ class MusicCog(commands.Cog):
             return 0 # On arrête le traitement et on indique qu'aucune piste n'a été ajoutée.
 
         try:
-            # On préfixe la recherche pour forcer YouTube si ce n'est pas un lien.
-            if not query.startswith(('http', 'ytsearch:', 'scsearch:', 'ytmsearch:')):
-                query = f"ytsearch:{query}"
-
-            # Stratégie de recherche avec une tentative de secours si la première échoue.
-            # 1. Première tentative avec la requête complète
-            tracks: list[wavelink.Playable] = await wavelink.Playable.search(query) # noqa
+            # Si ce n'est pas une URL, on force la recherche sur YouTube
+            if not is_valid_url(query):
+                search_query = f"ytsearch:{query}"
+                tracks: wavelink.Search = await wavelink.Playable.search(search_query)
+            else:
+                tracks: wavelink.Search = await wavelink.Playable.search(query)
 
             # 2. Si la première tentative échoue et que c'est une recherche Spotify, on tente une recherche plus simple.
             if not tracks and query.startswith("ytsearch:"):
