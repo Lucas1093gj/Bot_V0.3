@@ -50,5 +50,5 @@ if __name__ == '__main__':
     print("[Main Thread] Le thread du bot a été lancé.")
 
     # 2. Lancer le serveur Flask (MODE PRODUCTION)
-    print("[Main Thread] Lancement du serveur web de production sur http://0.0.0.0:5000")
-    waitress.serve(app, host='0.0.0.0', port=5000)
+    print("[Main Thread] Lancement du serveur web de production sur http://0.0.0.0:8000")
+    waitress.serve(app, host='0.0.0.0', port=8000)

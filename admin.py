@@ -76,20 +76,27 @@ def dashboard():
                     opt_out_guilds = {row['guild_id'] for row in await cursor.fetchall()}
                     await db.close()
                     
+                    sent_to_owners = set() # Ensemble pour suivre les propriétaires déjà contactés
                     success_count, failure_count = 0, 0
                     for guild in bot.guilds:
                         if guild.id in opt_out_guilds: continue
+                        
+                        # Si le propriétaire a déjà reçu le message, on passe au suivant
+                        if guild.owner_id in sent_to_owners:
+                            continue
+
                         owner = guild.owner or await bot.fetch_user(guild.owner_id)
                         if owner:
                             try:
                                 await owner.send(embed=embed)
+                                sent_to_owners.add(owner.id) # On ajoute l'ID au set
                                 success_count += 1
                             except (discord.Forbidden, discord.HTTPException):
                                 failure_count += 1
                     return success_count, failure_count
                 
                 success, failure = run_async(broadcast_announcement_async(message_content))
-                flash(f"Annonce envoyée avec succès à {success} serveur(s). Échec pour {failure} serveur(s).", "success")
+                flash(f"Annonce envoyée avec succès à {success} propriétaire(s) unique(s). Échec pour {failure} tentative(s).", "success")
 
         return redirect(url_for('admin.dashboard'))
 

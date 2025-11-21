@@ -4,20 +4,17 @@ from dotenv import load_dotenv
 from datetime import datetime
 import threading
 
-# --- Imports du Bot ---
-from main import bot # Importe l'instance du bot
-
-def create_app():
+def create_app(bot_instance):
     """Crée et configure l'instance de l'application Flask."""
     
     # --- Configuration de Flask ---
-    app = Flask(__name__,
+    app = Flask("webapp", # Nommer explicitement l'application
                 template_folder='../web',    # Remonte d'un niveau pour trouver le dossier web
                 static_folder='../web')      # Idem pour les fichiers statiques
 
     load_dotenv()
     app.config['SECRET_KEY'] = os.getenv("FLASK_SECRET_KEY", "une-cle-secrete-par-defaut-pour-le-dev")
-    app.config['BOT_INSTANCE'] = bot
+    app.config['BOT_INSTANCE'] = bot_instance
     app.config['ADMIN_BOT_IDS'] = {s.strip() for s in os.getenv("ADMIN_BOT_IDS", "").split(',') if s.strip()}
     app.config['BOT_TOKEN'] = os.getenv("DISCORD_TOKEN")
     app.config['CLIENT_ID'] = os.getenv("DISCORD_CLIENT_ID")
