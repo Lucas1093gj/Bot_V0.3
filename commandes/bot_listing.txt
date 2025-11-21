@@ -1,13 +1,11 @@
 Titre
 
-Bot Discord Tout-en-Un : Architecture Robuste pour Gestion de Serveur, Modération & Musique
 Bot Discord Tout-en-Un : Dashboard Web, Gestion de Serveur, Modération & Musique
 
 ---
 
 Description longue
 
-Découvrez un bot Discord polyvalent et puissant, conçu pour transformer la gestion de votre serveur. Construit sur une architecture modulaire et robuste, il offre une suite complète d'outils pour les administrateurs, les modérateurs et les membres, avec un accent particulier sur la fiabilité et la sécurité.
 Découvrez un bot Discord polyvalent et puissant, conçu pour transformer la gestion de votre serveur grâce à un **tableau de bord web complet et intuitif**. Construit sur une architecture modulaire et robuste, il offre une suite complète d'outils pour les administrateurs, les modérateurs et les membres.
 
 **🌐 Tableau de Bord Web Intégré (`/dashboard`)**

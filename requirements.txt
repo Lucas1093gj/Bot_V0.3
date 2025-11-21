@@ -3,7 +3,7 @@ py-cord[voice]  # La bibliothèque principale qui fait le lien avec Discord. L'o
 python-dotenv   # Permet de charger les configurations secrètes (comme le token) depuis un fichier .env.
 
 # --- Musique (Wavelink) ---
-wavelink==3.2.0 # Le client pour se connecter à un serveur Lavalink, qui gère le streaming audio. Version figée pour la stabilité.
+wavelink>=3.2.0,<4.0.0 # Le client pour se connecter à un serveur Lavalink. On reste sur la v3 pour la compatibilité.
 
 # --- Base de données ---
 aiosqlite       # Permet d'interagir avec la base de données SQLite de manière asynchrone, sans bloquer le bot.
