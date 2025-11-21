@@ -547,7 +547,7 @@ class MusicCog(commands.Cog):
                 # On garde que les caractères alphanumériques, espaces et tirets
                 cleaned_query = re.sub(r'[^\w\s-]', '', cleaned_query).strip()
                 
-                search_query = f"ytsearch:{cleaned_query}"
+                search_query = f"scsearch:{cleaned_query}"
             else:
                 search_query = query
 
