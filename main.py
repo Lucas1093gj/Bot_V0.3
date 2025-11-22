@@ -38,7 +38,7 @@ print("[Startup] Initialisation de la base de données...")
 # On active tous les "Intents" pour que le bot reçoive tous les types d'événements de Discord.
 # Pour un bot public à grande échelle, il serait plus optimisé de n'activer que les intents nécessaires.
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 # Ce verrou est utilisé pour protéger les opérations critiques (comme la reconstruction d'un serveur)
 # afin d'éviter que plusieurs commandes conflictuelles ne s'exécutent en même temps.
 bot.critical_operation_lock = asyncio.Lock()
