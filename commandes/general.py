@@ -9,7 +9,7 @@ class GeneralCog(commands.Cog, name="General"):
 
     @app_commands.command(name="dashboard", description="Envoie un lien privé pour accéder au tableau de bord web.")
     async def dashboard(self, interaction: discord.Interaction):
-        dashboard_url = os.getenv("WEB_BASE_URL", "http://127.0.0.1:5001")
+        dashboard_url = os.getenv("WEB_BASE_URL", "http://127.0.0.1:5000")
         embed = discord.Embed(
             title="🌐 Accès au Tableau de Bord",
             description=f"Cliquez sur le bouton ci-dessous pour ouvrir le tableau de bord et gérer vos serveurs.",
