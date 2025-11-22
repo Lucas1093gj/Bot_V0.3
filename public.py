@@ -24,9 +24,6 @@ def home():
     
     update_vlog_content = get_vlog_content()
 
-    WEB_BASE_URL = get_ngrok_url() or current_app.config.get("WEB_BASE_URL", "http://127.0.0.1:5000")
-    REDIRECT_URI = f"{WEB_BASE_URL}/auth/callback"
-
     # Si l'utilisateur n'est pas connecté, on affiche la page publique
     if 'access_token' not in session:
         return render_template(
@@ -36,8 +33,8 @@ def home():
             bot_avatar_url=bot.user.display_avatar.url if bot and bot.user else "https://cdn.discordapp.com/embed/avatars/0.png",
             client_id=current_app.config['CLIENT_ID'],
             bot_guilds_count=len(bot.guilds) if bot and bot.is_ready() else 0,
-            bot_users_count=sum(g.member_count for g in bot.guilds) if bot and bot.is_ready() else 0,
-            redirect_uri=REDIRECT_URI,
+            bot_users_count=sum(g.member_count for g in bot.guilds) if bot and bot.is_ready() else 0, # noqa
+            redirect_uri=current_app.config['REDIRECT_URI'],
             update_vlog_content=update_vlog_content
         )
 

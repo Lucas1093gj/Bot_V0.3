@@ -21,6 +21,11 @@ def create_app(bot_instance):
     app.config['CLIENT_SECRET'] = os.getenv("DISCORD_CLIENT_SECRET")
     app.config['DATABASE_PATH'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'bot_database.db')
 
+    # --- NOUVEAU : Centralisation de la configuration de l'URL ---
+    # On charge l'URL depuis le .env, avec une valeur par défaut pour le développement local.
+    app.config['WEB_BASE_URL'] = os.getenv("WEB_BASE_URL", "http://127.0.0.1:8000")
+    app.config['REDIRECT_URI'] = os.getenv("REDIRECT_URI", f"{app.config['WEB_BASE_URL']}/auth/callback")
+
     # --- NOUVEAU : Verrou pour éviter les race conditions sur le refresh token ---
     app.token_refresh_lock = threading.Lock()
 

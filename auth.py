@@ -11,15 +11,12 @@ def auth_callback():
     if not code:
         return "Erreur : code manquant.", 400
 
-    WEB_BASE_URL = get_ngrok_url() or current_app.config.get("WEB_BASE_URL", "http://127.0.0.1:5000")
-    REDIRECT_URI = f"{WEB_BASE_URL}/auth/callback"
-
     data = {
         'client_id': current_app.config['CLIENT_ID'],
         'client_secret': current_app.config['CLIENT_SECRET'],
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': REDIRECT_URI
+        'redirect_uri': current_app.config['REDIRECT_URI']
     }
     headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
 
