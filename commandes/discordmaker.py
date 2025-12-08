@@ -970,6 +970,23 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
                 # Si le salon n'existe plus (code 10003), tente d'envoyer un DM
                 if e.code == 10003:
                     await interaction.user.send(f"Une erreur est survenue sur le serveur **{interaction.guild.name}** et je n'ai pas pu répondre dans le salon (il a probablement été supprimé).\nErreur: `{error}`")
+                    try:
+                        await interaction.user.send(f"Une erreur est survenue sur le serveur **{interaction.guild.name}** et je n'ai pas pu répondre dans le salon (il a probablement été supprimé).\nErreur: `{error}`")
+                    except discord.Forbidden:
+                        pass # L'utilisateur a aussi ses DMs fermés, on ne peut rien faire.
+
+# --- Vérification de permission personnalisée (déplacée au niveau du module) ---
+def is_admin_or_creator():
+    """Vérifie si l'utilisateur est un admin du serveur OU le créateur du bot."""
+    async def predicate(interaction: discord.Interaction) -> bool:
+        # L'ID du créateur est stocké sur l'instance du bot (client)
+        creator_id = getattr(interaction.client, 'creator_id', None)
+        
+        # L'utilisateur est le créateur du bot
+        if creator_id and str(interaction.user.id) == creator_id:
+            return True
+        # L'utilisateur a les permissions d'administrateur sur le serveur
+        return interaction.user.guild_permissions.administrator
 
     async def _cleanup_guild(self, guild: discord.Guild):
         """Supprime uniquement les rôles et salons créés par le bot, en se basant sur les IDs stockés dans la base de données."""

@@ -48,6 +48,7 @@ Ce document répertorie toutes les fonctionnalités actuellement implémentées 
 - `/poll [question] [options...]` : Crée un sondage simple avec des réactions.
 - `/help` : Affiche un panneau d'aide interactif.
 - `/serverinfo` : Affiche des statistiques sur le serveur.
+- `/webhelp` : Affiche une aide dédiée au tableau de bord web.
 - `/userinfo [membre]` : Affiche des informations sur un membre.
 
 **📝 Journal d'Audit (Logger)**

@@ -93,18 +93,23 @@ class HelpSelect(discord.ui.Select):
         embed = discord.Embed(
             title=f"👋 Aide pour {self.bot.user.name}",
             description=f"Bienvenue sur le panneau d'aide interactif ! Je suis un bot multifonction conçu pour vous aider à gérer et animer votre serveur.\n\n"
-                        "**Utilisez le menu déroulant ci-dessous pour explorer mes commandes par catégorie.**",
+                        "**Utilisez le menu déroulant ci-dessous pour explorer mes commandes Discord.**",
             color=discord.Color.gold()
         )
         embed.add_field(
             name="Catégories Disponibles",
             value="""
-            ⚙️ **DiscordMaker** : Créez un serveur de A à Z. # noqa: E501
+            ⚙️ **DiscordMaker** : Créez un serveur de A à Z.
             🎵 **Musique** : Animez vos salons vocaux.
             🛡️ **Modération** : Gardez votre communauté saine.
             🎟️ **Tickets** : Contactez le staff en privé.
             🎉 **Utilitaires & Fun** : Commandes diverses pour tous.
             """,
+            inline=False
+        )
+        embed.add_field(
+            name="🌐 Aide pour le site web",
+            value="Pour obtenir de l'aide sur le **tableau de bord web** (configuration, annonces, etc.), utilisez la commande `/webhelp`.",
             inline=False
         )
         embed.set_footer(text=f"Bot v0.3 | Développé avec passion")
