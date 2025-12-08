@@ -43,6 +43,7 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 # afin d'éviter que plusieurs commandes conflictuelles ne s'exécutent en même temps.
 bot.critical_operation_lock = asyncio.Lock()
 
+bot.creator_id = CREATOR_ID
 # --- Configuration Lavalink ---
 LAVALINK_NODES = [
     # --- Liste de nœuds Lavalink v4 optimisée pour contourner les pare-feu ---

@@ -677,8 +677,22 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
         )
         await interaction.response.send_message(embed=embed, view=ConfirmView(self), ephemeral=True)
 
+    # --- Vérification de permission personnalisée ---
+    def is_admin_or_creator():
+        """Vérifie si l'utilisateur est un admin du serveur OU le créateur du bot."""
+        async def predicate(interaction: discord.Interaction) -> bool:
+            # L'ID du créateur est stocké sur l'instance du bot (client)
+            creator_id = getattr(interaction.client, 'creator_id', None)
+            
+            # L'utilisateur est le créateur du bot
+            if creator_id and str(interaction.user.id) == creator_id:
+                return True
+            # L'utilisateur a les permissions d'administrateur sur le serveur
+            return interaction.user.guild_permissions.administrator
+        return app_commands.check(predicate)
+
     @maker_group.command(name="backup", description="Crée une sauvegarde JSON de la structure actuelle du serveur.")
-    @app_commands.checks.has_permissions(administrator=True)
+    @is_admin_or_creator()
     async def backup(self, interaction: discord.Interaction):
         """Crée une sauvegarde de la structure du serveur (rôles, salons) et l'envoie en message privé."""
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -937,7 +951,10 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @post_roles.error
     async def maker_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         """Un gestionnaire d'erreurs centralisé pour toutes les commandes de ce cog."""
-        if isinstance(error, app_commands.MissingPermissions):
+        if isinstance(error, app_commands.CheckFailure):
+            # Gère notre check personnalisé `is_admin_or_creator`
+            await interaction.response.send_message("❌ Vous devez être administrateur du serveur ou le créateur du bot pour utiliser cette commande.", ephemeral=True)
+        elif isinstance(error, app_commands.MissingPermissions):
             await interaction.response.send_message("❌ Vous devez être administrateur pour utiliser cette commande.", ephemeral=True)
         else:
             print(f"Erreur dans DiscordMaker: {error}")
