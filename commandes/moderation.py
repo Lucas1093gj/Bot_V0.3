@@ -122,12 +122,18 @@ class ModerationCog(commands.Cog, name="Modération"):
         if membre.id == interaction.user.id:
             await interaction.response.send_message("❌ Vous ne pouvez pas vous avertir vous-même.", ephemeral=True)
             return
-        # On vérifie que le modérateur a un rôle plus élevé que le membre à avertir.
-        if membre.top_role >= interaction.user.top_role and interaction.guild.owner_id != interaction.user.id: # interaction.user est un discord.Member ici
+
+        # --- Vérification de la hiérarchie des rôles ---
+        # L'auteur de la commande est-il le propriétaire du serveur ? Si oui, il peut tout faire.
+        is_owner = interaction.user.id == interaction.guild.owner_id
+        
+        # 1. On ne peut pas sanctionner quelqu'un avec un rôle supérieur ou égal au sien (sauf si on est propriétaire)
+        if not is_owner and membre.top_role >= interaction.user.top_role:
             await interaction.response.send_message("❌ Vous ne pouvez pas avertir un membre ayant un rôle égal ou supérieur au vôtre.", ephemeral=True)
             return
+        # 2. Le bot ne peut pas sanctionner quelqu'un avec un rôle supérieur ou égal au sien
         if membre.top_role >= interaction.guild.me.top_role:
-            await interaction.response.send_message("❌ Je ne peux pas avertir ce membre car son rôle est supérieur ou égal au mien.", ephemeral=True)
+            await interaction.response.send_message("❌ Je ne peux pas avertir ce membre car son rôle est supérieur ou égal au mien. Veuillez remonter mon rôle dans la hiérarchie.", ephemeral=True)
             return
 
         async with get_db_connection() as conn:
@@ -259,8 +265,15 @@ class ModerationCog(commands.Cog, name="Modération"):
         if membre.id == interaction.user.id:
             await interaction.response.send_message("❌ Vous ne pouvez pas vous rendre muet vous-même.", ephemeral=True)
             return
-        if membre.top_role >= interaction.user.top_role and interaction.guild.owner != interaction.user:
+
+        # --- Vérification de la hiérarchie des rôles ---
+        is_owner = interaction.user.id == interaction.guild.owner_id
+        if not is_owner and membre.top_role >= interaction.user.top_role:
             await interaction.response.send_message("❌ Vous ne pouvez pas rendre muet un membre ayant un rôle égal ou supérieur au vôtre.", ephemeral=True)
+            return
+        
+        if membre.top_role >= interaction.guild.me.top_role:
+            await interaction.response.send_message("❌ Je ne peux pas rendre ce membre muet car son rôle est supérieur ou égal au mien. Veuillez remonter mon rôle dans la hiérarchie.", ephemeral=True)
             return
 
         delta = parse_duration(duree)

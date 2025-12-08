@@ -708,6 +708,21 @@ class MusicCog(commands.Cog):
             player.queue.mode = wavelink.QueueMode.loop_all
             await interaction.response.send_message(f"🔁 Répétition activée pour : **{mode.name}**.")
 
+    @music_group.command(name="volume", description="Règle le volume du bot pour la musique (0-100).")
+    @app_commands.describe(niveau="Le pourcentage de volume souhaité.")
+    async def volume(self, interaction: discord.Interaction, niveau: app_commands.Range[int, 0, 100]):
+        """Règle le volume du lecteur de musique."""
+        player: wavelink.Player = interaction.guild.voice_client
+        if not player:
+            await interaction.response.send_message("❌ Le bot n'est connecté à aucun salon vocal.", ephemeral=True)
+            return
+        
+        if not player.playing:
+            await interaction.response.send_message("🤔 Aucune lecture en cours pour ajuster le volume.", ephemeral=True)
+            return
+
+        await player.set_volume(niveau)
+        await interaction.response.send_message(f"🔊 Volume de la musique réglé à **{niveau}%**.")
 
 async def setup(bot: commands.Bot, **kwargs):
     await bot.add_cog(MusicCog(bot))

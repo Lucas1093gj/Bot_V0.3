@@ -7,6 +7,12 @@ class UtilsCog(commands.Cog, name="Utilitaires"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    @app_commands.command(name="ping", description="Vérifie la latence du bot.")
+    async def ping(self, interaction: discord.Interaction):
+        """Affiche la latence du bot avec l'API Discord."""
+        latency = round(self.bot.latency * 1000)
+        await interaction.response.send_message(f"Pong ! 🏓 Latence : {latency}ms", ephemeral=True)
+
     @app_commands.command(name="serverinfo", description="Affiche des informations détaillées sur le serveur.")
     async def serverinfo(self, interaction: discord.Interaction):
         guild = interaction.guild
@@ -74,22 +80,6 @@ class UtilsCog(commands.Cog, name="Utilitaires"):
 
         embed.set_footer(text=f"Demandé par {interaction.user.display_name}", icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
         await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name="volume", description="Règle le volume du bot pour la musique (0-100).")
-    @app_commands.describe(niveau="Le pourcentage de volume souhaité.")
-    async def volume(self, interaction: discord.Interaction, niveau: app_commands.Range[int, 0, 100]):
-        """Règle le volume du bot pour la musique (Wavelink)."""
-        vc = interaction.guild.voice_client
-        if not vc:
-            await interaction.response.send_message("❌ Le bot n'est connecté à aucun salon vocal.", ephemeral=True)
-            return
-        
-        # Le lecteur est un lecteur Wavelink (pour la musique)
-        if hasattr(vc, 'set_volume') and isinstance(vc, discord.VoiceProtocol): # Vérifie si c'est un wavelink.Player
-            await vc.set_volume(niveau)
-            await interaction.response.send_message(f"🔊 Volume de la musique réglé à **{niveau}%**.")
-        else:
-            await interaction.response.send_message("🤔 Aucune lecture en cours pour ajuster le volume.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot, **kwargs):

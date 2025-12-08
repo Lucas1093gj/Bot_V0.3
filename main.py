@@ -52,13 +52,6 @@ LAVALINK_NODES = [
     {"host": "lavalinkv4.serenetia.com", "port": 80, "password": "https://dsc.gg/ajidevserver", "secure": False, "region": "Serenetia-EU-Port80"},
 ]
 
-# --- Fonctions utilitaires pour la base de données (copiées de main2.py) ---
-async def get_db_async():
-    """Ouvre une connexion asynchrone à la base de données SQLite."""
-    db = await aiosqlite.connect(DATABASE_PATH)
-    db.row_factory = aiosqlite.Row
-    return db
-
 # --- Tâche de nettoyage des logs ---
 @tasks.loop(hours=24)
 async def cleanup_old_logs():
@@ -139,11 +132,10 @@ async def maintenance_check(interaction: discord.Interaction):
         return True
 
     try:
-        db = await get_db_async()
-        cursor = await db.execute("SELECT value FROM global_settings WHERE key = 'maintenance_mode'")
-        maintenance_mode = await cursor.fetchone()
-        await db.close()
-
+        async with db_manager.get_db_connection() as db:
+            cursor = await db.execute("SELECT value FROM global_settings WHERE key = 'maintenance_mode'")
+            maintenance_mode = await cursor.fetchone()
+        
         if maintenance_mode and maintenance_mode['value'] == '1':
             # Vérifie si l'utilisateur est un admin du bot
             user_id_str = str(interaction.user.id) # On compare des chaînes pour éviter les erreurs de type

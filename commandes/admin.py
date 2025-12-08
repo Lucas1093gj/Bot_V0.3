@@ -20,16 +20,12 @@ class AdminCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="ping", description="Vérifie la latence du bot.")
-    async def ping(self, interaction: discord.Interaction):
-        """Affiche la latence du bot avec l'API Discord."""
-        latency = round(self.bot.latency * 1000)
-        await interaction.response.send_message(f"Pong ! 🏓 Latence : {latency}ms", ephemeral=True)
-
     @app_commands.command(name="restart", description="[Admin Bot] Redémarre le bot.")
     @is_bot_admin() # On utilise notre nouvelle vérification personnalisée
     async def restart(self, interaction: discord.Interaction):
         """Redémarre le processus du bot."""
+        # AVERTISSEMENT : Cette méthode de redémarrage peut être instable sur certains systèmes d'exploitation
+        # et n'est pas recommandée en production. Un gestionnaire de processus externe (comme systemd ou un script shell) est plus robuste.
         await interaction.response.send_message("🚀 Le bot va redémarrer dans quelques secondes...", ephemeral=True)
         
         # La logique de redémarrage doit être non-bloquante pour que la réponse Discord soit envoyée.

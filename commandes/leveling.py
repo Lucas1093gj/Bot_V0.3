@@ -31,15 +31,14 @@ class LevelingCog(commands.Cog, name="Leveling"):
         # Utilisation d'un contexte asynchrone pour gérer la connexion
         async with get_db_connection() as conn:
             conn.row_factory = aiosqlite.Row
-            cursor = await conn.cursor() # noqa
 
             # Récupérer l'utilisateur ou le créer s'il n'existe pas
-            await cursor.execute("SELECT xp, level, last_message_timestamp FROM user_levels WHERE guild_id = ? AND user_id = ?", (message.guild.id, message.author.id))
-            user_data = await cursor.fetchone()
+            cursor = await conn.execute("SELECT xp, level, last_message_timestamp FROM user_levels WHERE guild_id = ? AND user_id = ?", (message.guild.id, message.author.id))
+            user_data = await cursor.fetchone() # noqa
 
             if not user_data:
                 # Le timestamp est en secondes (integer)
-                await cursor.execute("INSERT INTO user_levels (guild_id, user_id, xp, level, last_message_timestamp) VALUES (?, ?, 0, 0, 0)", (message.guild.id, message.author.id))
+                await conn.execute("INSERT INTO user_levels (guild_id, user_id, xp, level, last_message_timestamp) VALUES (?, ?, 0, 0, 0)", (message.guild.id, message.author.id))
                 await conn.commit() # Commit de l'insertion
                 user_data = {'xp': 0, 'level': 0, 'last_message_timestamp': 0}
 
@@ -60,7 +59,7 @@ class LevelingCog(commands.Cog, name="Leveling"):
                 await message.channel.send(f"🎉 Bravo {message.author.mention}, vous avez atteint le **niveau {new_level}** !")
 
             # Mettre à jour la base de données
-            await cursor.execute("UPDATE user_levels SET xp = ?, level = ?, last_message_timestamp = ? WHERE guild_id = ? AND user_id = ?", (new_xp, new_level, current_time, message.guild.id, message.author.id))
+            await conn.execute("UPDATE user_levels SET xp = ?, level = ?, last_message_timestamp = ? WHERE guild_id = ? AND user_id = ?", (new_xp, new_level, current_time, message.guild.id, message.author.id))
             await conn.commit()
 
 # --- Setup du cog ---

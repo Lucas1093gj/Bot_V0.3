@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord import option
+from db_manager import get_db_connection
 
 import json
 import io
@@ -10,30 +10,30 @@ from datetime import datetime
 class PrivacyCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Assurez-vous que votre bot a une référence à votre gestionnaire de base de données
-        # Exemple : self.db = bot.db_manager
-        # Pour cet exemple, nous allons simuler les appels à la base de données.
 
     async def fetch_user_warnings(self, user_id: int, guild_id: int):
         """
-        Fonction simulée pour récupérer les avertissements d'un utilisateur.
-        À remplacer par votre propre appel à la base de données.
-        Exemple : return await self.bot.db_manager.get_warnings_for_user(user_id, guild_id)
+        Récupère les avertissements d'un utilisateur depuis la base de données.
         """
-        # Données d'exemple
-        return [
-            {"warn_id": 1, "moderator_id": 12345, "reason": "Spam", "date": "2024-05-01 10:00:00"},
-            {"warn_id": 5, "moderator_id": 67890, "reason": "Comportement inapproprié", "date": "2024-06-10 15:30:00"}
-        ]
+        async with get_db_connection() as conn:
+            conn.row_factory = discord.utils.dict_factory
+            cursor = await conn.execute(
+                "SELECT id, moderator_id, reason, timestamp FROM warnings WHERE guild_id = ? AND user_id = ?",
+                (guild_id, user_id)
+            )
+            return await cursor.fetchall()
 
     async def fetch_user_level(self, user_id: int, guild_id: int):
         """
-        Fonction simulée pour récupérer le niveau et l'XP d'un utilisateur.
-        À remplacer par votre propre appel à la base de données.
-        Exemple : return await self.bot.db_manager.get_level_for_user(user_id, guild_id)
+        Récupère le niveau et l'XP d'un utilisateur depuis la base de données.
         """
-        # Données d'exemple
-        return {"level": 12, "xp": 12500, "total_xp": 25000}
+        async with get_db_connection() as conn:
+            conn.row_factory = discord.utils.dict_factory
+            cursor = await conn.execute(
+                "SELECT level, xp FROM user_levels WHERE guild_id = ? AND user_id = ?",
+                (guild_id, user_id)
+            )
+            return await cursor.fetchone()
 
     @commands.slash_command(
         name="mydata",
@@ -51,7 +51,7 @@ class PrivacyCog(commands.Cog):
 
         # 1. Collecter les données de l'utilisateur depuis la base de données
         # Remplacez ces appels par les vôtres
-        warnings_data = await self.fetch_user_warnings(user.id, guild.id)
+        warnings_data = await self.fetch_user_warnings(user.id, guild.id) or []
         level_data = await self.fetch_user_level(user.id, guild.id)
 
         # 2. Construire le dictionnaire de données
@@ -97,5 +97,5 @@ class PrivacyCog(commands.Cog):
             print(f"Erreur lors de l'envoi des données à {user.id}: {e}")
             await ctx.followup.send("❌ Une erreur inattendue est survenue. Veuillez réessayer plus tard ou contacter le support.", ephemeral=True)
 
-def setup(bot: commands.Bot):
-    bot.add_cog(PrivacyCog(bot))
+async def setup(bot: commands.Bot):
+    await bot.add_cog(PrivacyCog(bot))
