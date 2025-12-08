@@ -677,6 +677,43 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
         )
         await interaction.response.send_message(embed=embed, view=ConfirmView(self), ephemeral=True)
 
+    @maker_group.command(name="backup", description="Crée une sauvegarde JSON de la structure actuelle du serveur.")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def backup(self, interaction: discord.Interaction):
+        """Crée une sauvegarde de la structure du serveur (rôles, salons) et l'envoie en message privé."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        guild = interaction.guild
+
+        await interaction.followup.send("🔄 Création de la sauvegarde en cours...", ephemeral=True)
+
+        backup_file_path = None
+        try:
+            # On utilise la fonction existante pour créer le fichier de sauvegarde
+            backup_file_path = await create_server_backup(guild)
+            if not backup_file_path:
+                await interaction.followup.send("❌ Une erreur est survenue lors de la création du fichier de sauvegarde.", ephemeral=True)
+                return
+
+            embed = discord.Embed(
+                title=f"📄 Sauvegarde du serveur {guild.name}",
+                description="Voici une sauvegarde de la structure de votre serveur (rôles et salons). **Conservez ce fichier précieusement.**",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Utilisation", value="Ce fichier `.json` peut être utilisé avec la commande `/discordmaker restore` pour recréer cette structure sur n'importe quel serveur où vous êtes propriétaire.", inline=False)
+            embed.set_footer(text="⚠️ ATTENTION : Cette sauvegarde n'inclut PAS les messages, les membres, ou les fichiers du serveur.")
+
+            await interaction.user.send(embed=embed, file=discord.File(backup_file_path))
+            await interaction.followup.send("✅ La sauvegarde vous a été envoyée en message privé.", ephemeral=True)
+
+        except discord.Forbidden:
+            await interaction.followup.send("⚠️ Impossible de vous envoyer la sauvegarde en DM. Vos messages privés sont probablement fermés. La sauvegarde a été créée mais n'a pas pu être envoyée.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Une erreur inattendue est survenue : {e}", ephemeral=True)
+        finally:
+            # Nettoyage : on supprime le fichier de sauvegarde du disque après l'avoir envoyé (ou tenté de l'envoyer).
+            if backup_file_path and os.path.exists(backup_file_path):
+                os.remove(backup_file_path)
+
     @maker_group.command(name="full-reset", description="[DANGER] Réinitialise totalement le serveur (Owner uniquement).")
     async def full_reset(self, interaction: discord.Interaction):
         """Supprime TOUS les rôles et salons du serveur, avec une double confirmation pour la sécurité."""
@@ -894,6 +931,7 @@ class DiscordMakerCog(commands.Cog, name="DiscordMaker"):
     @setup.error
     @start.error
     @reset.error
+    @backup.error
     @restore.error
     @full_reset.error
     @post_roles.error

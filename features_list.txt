@@ -16,7 +16,8 @@ Ce document répertorie toutes les fonctionnalités actuellement implémentées 
 - `/discordmaker start` : Construit le serveur en se basant sur la configuration sauvegardée.
 - `/discordmaker reset` : Nettoie uniquement les rôles et salons créés par le bot (basé sur la base de données).
 - `/discordmaker full-reset` : [Owner uniquement] Réinitialise COMPLÈTEMENT le serveur (supprime tous les rôles et salons) après une double confirmation.
-- `/discordmaker restore` : [Owner uniquement] Restaure la structure d'un serveur à partir d'un fichier de sauvegarde `.json`.
+- `/discordmaker backup` : Crée une sauvegarde JSON de la structure actuelle du serveur (rôles, salons, permissions) et l'envoie en message privé.
+- `/discordmaker restore` : [Owner uniquement] Restaure la structure d'un serveur à partir d'un fichier de sauvegarde `.json` fourni.
 - `/discordmaker post-roles` : Poste un message avec un menu déroulant pour que les membres puissent s'auto-attribuer des rôles.
 
 **🎵 Musique (Wavelink)**
@@ -52,6 +53,9 @@ Ce document répertorie toutes les fonctionnalités actuellement implémentées 
 **📝 Journal d'Audit (Logger)**
 - Enregistre automatiquement les messages supprimés et modifiés dans la base de données.
 - `/getlog` : [Admin uniquement] Envoie la base de données des logs en message privé.
+
+**🔒 Confidentialité & Données**
+- `/mydata` : Permet à un utilisateur de recevoir une copie de toutes ses données personnelles (niveaux, avertissements) stockées par le bot, envoyée en message privé.
 
 ---
 **🏆 Système de Niveaux (Leveling)**
